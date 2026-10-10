@@ -1,0 +1,2605 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'; frame-src 'none'">
+<meta name="referrer" content="no-referrer">
+<meta name="description" content="DailyBudget — a free, private budgeting app. Daily limits, monthly budgets, bills and savings goals. No sign-up; your data stays in your browser.">
+<meta name="theme-color" content="#0f766e">
+<title>DailyBudget</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%230f766e'/%3E%3Crect x='14' y='18' width='36' height='32' rx='6' fill='none' stroke='white' stroke-width='4'/%3E%3Cpath d='M14 27h36' stroke='white' stroke-width='4'/%3E%3Cpath d='M24 40l5 5 11-11' fill='none' stroke='white' stroke-width='4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+
+<!-- Chart library, pinned to an exact version and verified with Subresource Integrity -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.1/dist/chart.umd.min.js"
+        integrity="sha384-jb8JQMbMoBUzgWatfe6COACi2ljcDdZQ2OxczGA3bGNeWe+6DChMTBJemed7ZnvJ"
+        crossorigin="anonymous"></script>
+
+<style>
+/* ============================================================
+   Design tokens
+   ============================================================ */
+:root {
+  --bg: #f5f6f2;
+  --surface: #ffffff;
+  --surface-2: #eef1ec;
+  --text: #13201a;
+  --text-2: #56635d;
+  --text-3: #808b85;
+  --line: #e0e5de;
+  --accent: #0f766e;
+  --accent-hover: #0b5f58;
+  --accent-ink: #ffffff;
+  --accent-soft: #dff1ed;
+  --inc: #15803d;
+  --exp: #c2410c;
+  --ok: #15803d;
+  --half: #a16207;
+  --warn: #c2410c;
+  --danger: #b91c1c;
+  --ok-soft: #dcfce7;
+  --half-soft: #fef3c7;
+  --warn-soft: #ffedd5;
+  --danger-soft: #fee2e2;
+  --radius: 14px;
+  --radius-sm: 9px;
+  --shadow: 0 1px 2px rgba(16, 24, 20, .05), 0 4px 16px rgba(16, 24, 20, .06);
+  --font: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0e1412; --surface: #151d1a; --surface-2: #1c2622; --text: #e8eeeb; --text-2: #a7b3ad;
+    --text-3: #77847e; --line: #27322d; --accent: #2dd4bf; --accent-hover: #5eead4; --accent-ink: #062b27;
+    --accent-soft: #123a35; --inc: #4ade80; --exp: #fb923c; --ok: #4ade80; --half: #facc15; --warn: #fb923c;
+    --danger: #f87171; --ok-soft: #12301f; --half-soft: #33300f; --warn-soft: #3a2412; --danger-soft: #3a1717;
+    --shadow: 0 1px 2px rgba(0,0,0,.4), 0 6px 20px rgba(0,0,0,.25);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0e1412; --surface: #151d1a; --surface-2: #1c2622; --text: #e8eeeb; --text-2: #a7b3ad;
+  --text-3: #77847e; --line: #27322d; --accent: #2dd4bf; --accent-hover: #5eead4; --accent-ink: #062b27;
+  --accent-soft: #123a35; --inc: #4ade80; --exp: #fb923c; --ok: #4ade80; --half: #facc15; --warn: #fb923c;
+  --danger: #f87171; --ok-soft: #12301f; --half-soft: #33300f; --warn-soft: #3a2412; --danger-soft: #3a1717;
+  --shadow: 0 1px 2px rgba(0,0,0,.4), 0 6px 20px rgba(0,0,0,.25);
+  color-scheme: dark;
+}
+
+/* ============================================================
+   Base
+   ============================================================ */
+*, *::before, *::after { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0; background: var(--bg); color: var(--text); font-family: var(--font);
+  font-size: 15px; line-height: 1.5; -webkit-font-smoothing: antialiased;
+}
+[hidden] { display: none !important; }
+h1, h2, h3, h4 { line-height: 1.2; margin: 0; letter-spacing: -0.01em; }
+p { margin: 0; }
+a { color: var(--accent); }
+button, input, select, textarea { font: inherit; color: inherit; }
+.num { font-variant-numeric: tabular-nums; }
+.muted { color: var(--text-2); }
+.small { font-size: 13px; }
+.tiny { font-size: 12px; }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* Buttons */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  border: 1px solid var(--line); background: var(--surface); color: var(--text);
+  padding: 9px 14px; border-radius: var(--radius-sm); cursor: pointer; font-weight: 600;
+  font-size: 14px; text-decoration: none; white-space: nowrap; min-height: 40px;
+  transition: background .15s, border-color .15s, color .15s;
+}
+.btn:hover { background: var(--surface-2); }
+.btn:disabled { opacity: .55; cursor: not-allowed; }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.btn.primary:hover { background: var(--accent-hover); border-color: var(--accent-hover); }
+.btn.danger { color: var(--danger); border-color: var(--danger); background: transparent; }
+.btn.danger:hover { background: var(--danger-soft); }
+.btn.danger.solid { background: var(--danger); color: #fff; }
+.btn.ghost { border-color: transparent; background: transparent; }
+.btn.ghost:hover { background: var(--surface-2); }
+.btn.sm { padding: 5px 10px; min-height: 32px; font-size: 13px; }
+.btn.lg { padding: 13px 22px; font-size: 16px; min-height: 48px; }
+.icon-btn {
+  border: 0; background: transparent; width: 36px; height: 36px; border-radius: 8px;
+  display: inline-flex; align-items: center; justify-content: center; cursor: pointer; color: var(--text-2);
+}
+.icon-btn:hover { background: var(--surface-2); color: var(--text); }
+.icon-btn svg { width: 18px; height: 18px; }
+
+/* Forms */
+.field { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+.field > span, .field-label { font-size: 13px; font-weight: 600; color: var(--text-2); }
+.input, select.input, textarea.input {
+  width: 100%; border: 1px solid var(--line); background: var(--surface); border-radius: var(--radius-sm);
+  padding: 9px 11px; min-height: 40px; font-size: 15px;
+}
+textarea.input { min-height: 80px; resize: vertical; }
+.input:focus { outline: 2px solid var(--accent); outline-offset: -1px; border-color: transparent; }
+.check { display: flex; align-items: center; gap: 8px; font-size: 14px; cursor: pointer; }
+.check input { width: 18px; height: 18px; accent-color: var(--accent); }
+.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.form-grid .full { grid-column: 1 / -1; }
+.hint { font-size: 12.5px; color: var(--text-3); }
+.seg { display: inline-flex; background: var(--surface-2); border-radius: 10px; padding: 3px; gap: 2px; flex-wrap: wrap; }
+.seg button, .seg label {
+  border: 0; background: transparent; padding: 6px 12px; border-radius: 8px; cursor: pointer;
+  font-weight: 600; font-size: 13.5px; color: var(--text-2);
+}
+.seg button.on, .seg label:has(input:checked) { background: var(--surface); color: var(--text); box-shadow: var(--shadow); }
+.seg input { position: absolute; opacity: 0; pointer-events: none; }
+.form-error {
+  background: var(--danger-soft); color: var(--danger); border-radius: var(--radius-sm);
+  padding: 9px 12px; font-size: 14px; margin-top: 12px;
+}
+
+/* Cards */
+.card {
+  background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius);
+  box-shadow: var(--shadow); padding: 18px; min-width: 0;
+}
+.card-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 14px; }
+.card-head h3 { font-size: 16px; }
+.card-head .sub { font-size: 12.5px; color: var(--text-3); }
+.notice {
+  border-radius: var(--radius-sm); padding: 11px 14px; font-size: 14px; background: var(--accent-soft);
+  color: var(--text); display: flex; gap: 10px; align-items: flex-start;
+}
+.notice.warn { background: var(--warn-soft); }
+.notice.danger { background: var(--danger-soft); }
+.notice svg { flex: 0 0 18px; width: 18px; height: 18px; margin-top: 2px; }
+
+/* Pills / badges */
+.badge {
+  display: inline-flex; align-items: center; gap: 4px; padding: 2px 9px; border-radius: 999px;
+  font-size: 12px; font-weight: 700; white-space: nowrap; background: var(--surface-2); color: var(--text-2);
+}
+.badge.ok { background: var(--ok-soft); color: var(--ok); }
+.badge.half { background: var(--half-soft); color: var(--half); }
+.badge.warn { background: var(--warn-soft); color: var(--warn); }
+.badge.full, .badge.over, .badge.danger { background: var(--danger-soft); color: var(--danger); }
+.badge.inc { background: var(--ok-soft); color: var(--inc); }
+.badge.exp { background: var(--warn-soft); color: var(--exp); }
+
+/* Meter */
+.meter { height: 10px; background: var(--surface-2); border-radius: 999px; overflow: hidden; position: relative; }
+.meter > span { display: block; height: 100%; border-radius: 999px; background: var(--ok); transition: width .4s; }
+.meter.half > span { background: var(--half); }
+.meter.warn > span { background: var(--warn); }
+.meter.full > span, .meter.over > span { background: var(--danger); }
+.meter.lg { height: 14px; }
+.meter .tick { position: absolute; top: 0; bottom: 0; width: 2px; background: var(--surface); opacity: .9; }
+
+/* Toasts */
+#toasts { position: fixed; z-index: 100; right: 16px; bottom: 16px; display: flex; flex-direction: column; gap: 8px; max-width: min(380px, calc(100vw - 32px)); }
+.toast {
+  background: var(--text); color: var(--bg); padding: 11px 14px; border-radius: 10px; font-size: 14px;
+  box-shadow: 0 8px 24px rgba(0,0,0,.2); animation: toastIn .2s ease-out;
+}
+.toast.error { background: var(--danger); color: #fff; }
+.toast.success { background: var(--ok); color: #fff; }
+:root[data-theme="dark"] .toast.success, :root[data-theme="dark"] .toast.error { color: #0e1412; }
+@keyframes toastIn { from { transform: translateY(8px); opacity: 0; } to { transform: none; opacity: 1; } }
+
+/* Dialog */
+dialog.modal {
+  border: 0; padding: 0; border-radius: 18px; background: var(--surface); color: var(--text);
+  width: min(560px, calc(100vw - 24px)); max-height: calc(100dvh - 32px); box-shadow: 0 24px 60px rgba(0,0,0,.3);
+}
+dialog.modal::backdrop { background: rgba(10, 18, 14, .5); backdrop-filter: blur(2px); }
+.modal form { display: flex; flex-direction: column; max-height: calc(100dvh - 32px); }
+.modal-head { display: flex; align-items: center; justify-content: space-between; padding: 18px 20px 6px; }
+.modal-head h2 { font-size: 19px; }
+.modal-body { padding: 12px 20px 4px; overflow-y: auto; }
+.modal-foot { display: flex; justify-content: flex-end; gap: 10px; padding: 16px 20px 20px; flex-wrap: wrap; }
+
+/* ============================================================
+   Logo
+   ============================================================ */
+.logo { display: inline-flex; align-items: center; gap: 10px; font-weight: 800; font-size: 19px; letter-spacing: -0.02em; color: var(--text); text-decoration: none; }
+.logo svg { width: 34px; height: 34px; flex: 0 0 34px; }
+.logo b { color: var(--accent); font-weight: 800; }
+
+/* ============================================================
+   Landing
+   ============================================================ */
+.landing { min-height: 100dvh; display: flex; flex-direction: column; }
+.l-wrap { width: min(1120px, 100% - 32px); margin: 0 auto; }
+.l-nav { display: flex; align-items: center; justify-content: space-between; padding: 18px 0; gap: 12px; }
+.l-nav .actions { display: flex; gap: 8px; align-items: center; }
+.hero { display: grid; grid-template-columns: 1.1fr .9fr; gap: 48px; align-items: center; padding: 48px 0 64px; }
+.hero h1 { font-size: clamp(34px, 5vw, 54px); letter-spacing: -0.03em; line-height: 1.05; }
+.hero h1 em { font-style: normal; color: var(--accent); }
+.hero p.lead { font-size: 18px; color: var(--text-2); margin: 18px 0 26px; max-width: 34em; }
+.hero .cta { display: flex; gap: 12px; flex-wrap: wrap; }
+.hero .trust { margin-top: 18px; font-size: 13.5px; color: var(--text-3); display: flex; gap: 8px; align-items: center; }
+.preview { position: relative; }
+.preview .card { padding: 22px; }
+.preview .big { font-size: 34px; font-weight: 800; letter-spacing: -0.02em; margin: 4px 0 12px; }
+.preview-row { display: flex; justify-content: space-between; font-size: 14px; padding: 9px 0; border-top: 1px solid var(--line); }
+.preview .float {
+  position: absolute; right: -14px; bottom: -22px; width: 210px; padding: 14px; transform: rotate(2deg);
+}
+.l-section { padding: 56px 0; border-top: 1px solid var(--line); }
+.l-section h2 { font-size: 30px; letter-spacing: -0.02em; margin-bottom: 8px; }
+.l-section > .l-wrap > p.muted { margin-bottom: 28px; max-width: 40em; }
+.features { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+.feature { padding: 20px; }
+.feature .ico { width: 40px; height: 40px; border-radius: 11px; background: var(--accent-soft); color: var(--accent); display: grid; place-items: center; margin-bottom: 12px; }
+.feature .ico svg { width: 21px; height: 21px; }
+.feature h3 { font-size: 16px; margin-bottom: 6px; }
+.feature p { font-size: 14px; color: var(--text-2); }
+.security-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; }
+.sec-item { display: flex; gap: 12px; padding: 16px; }
+.sec-item svg { flex: 0 0 22px; width: 22px; height: 22px; color: var(--accent); margin-top: 2px; }
+.sec-item h4 { font-size: 15px; margin-bottom: 3px; }
+.sec-item p { font-size: 14px; color: var(--text-2); }
+.l-footer { margin-top: auto; padding: 26px 0 34px; border-top: 1px solid var(--line); font-size: 13px; color: var(--text-3); }
+.l-footer .l-wrap { display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+.config-banner { background: var(--warn-soft); color: var(--text); padding: 12px 16px; font-size: 14px; text-align: center; }
+.config-banner code { font-family: var(--mono); font-size: 13px; }
+.auth-tabs { margin-bottom: 16px; }
+.auth-stack { display: flex; flex-direction: column; gap: 14px; }
+.link-btn { border: 0; background: none; color: var(--accent); cursor: pointer; padding: 0; font-weight: 600; font-size: 14px; }
+
+/* ============================================================
+   App shell
+   ============================================================ */
+.app { display: grid; grid-template-columns: 248px 1fr; min-height: 100dvh; }
+.sidebar {
+  background: var(--surface); border-right: 1px solid var(--line); padding: 18px 14px; display: flex;
+  flex-direction: column; gap: 18px; position: sticky; top: 0; height: 100dvh; overflow-y: auto;
+}
+.sidebar .logo { padding: 2px 8px; }
+.nav { display: flex; flex-direction: column; gap: 2px; }
+.nav button {
+  display: flex; align-items: center; gap: 11px; width: 100%; border: 0; background: transparent;
+  padding: 10px 12px; border-radius: 10px; font-weight: 600; font-size: 14.5px; cursor: pointer; color: var(--text-2); text-align: left;
+}
+.nav button svg { width: 19px; height: 19px; flex: 0 0 19px; }
+.nav button:hover { background: var(--surface-2); color: var(--text); }
+.nav button.on { background: var(--accent-soft); color: var(--accent); }
+.side-foot { margin-top: auto; display: flex; flex-direction: column; gap: 10px; border-top: 1px solid var(--line); padding-top: 14px; }
+.who { font-size: 13px; color: var(--text-2); overflow-wrap: anywhere; padding: 0 6px; }
+.who strong { display: block; color: var(--text); font-size: 14px; }
+.main { min-width: 0; display: flex; flex-direction: column; }
+.topbar {
+  position: sticky; top: 0; z-index: 20; display: flex; align-items: center; gap: 10px; padding: 14px 28px;
+  background: color-mix(in srgb, var(--bg) 88%, transparent); backdrop-filter: blur(10px); border-bottom: 1px solid var(--line);
+}
+.topbar h1 { font-size: 21px; flex: 1; }
+.topbar .menu-btn { display: none; }
+.view { padding: 24px 28px 96px; display: flex; flex-direction: column; gap: 20px; max-width: 1280px; width: 100%; }
+.toolbar { display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap; }
+.toolbar .grow { flex: 1; }
+.toolbar .field { min-width: 140px; }
+.scrim { display: none; }
+.fab {
+  position: fixed; right: 20px; bottom: 20px; z-index: 30; width: 56px; height: 56px; border-radius: 50%;
+  border: 0; background: var(--accent); color: var(--accent-ink); box-shadow: 0 10px 24px rgba(15,118,110,.35);
+  display: none; align-items: center; justify-content: center; cursor: pointer;
+}
+.fab svg { width: 26px; height: 26px; }
+
+/* KPI tiles */
+.kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 14px; }
+.kpi { padding: 16px 18px; }
+.kpi .label { font-size: 13px; font-weight: 600; color: var(--text-2); display: flex; align-items: center; gap: 6px; }
+.kpi .value { font-size: 25px; font-weight: 800; letter-spacing: -0.02em; margin-top: 4px; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.kpi .foot { font-size: 12.5px; color: var(--text-3); margin-top: 4px; }
+.kpi.hero-kpi { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.kpi.hero-kpi .label, .kpi.hero-kpi .foot { color: inherit; opacity: .85; }
+.v-inc { color: var(--inc); }
+.v-exp { color: var(--exp); }
+.v-neg { color: var(--danger); }
+
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+.grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+.span-2 { grid-column: span 2; }
+.chart-box { position: relative; height: 260px; }
+.chart-box.tall { height: 320px; }
+.empty { text-align: center; color: var(--text-3); padding: 28px 12px; font-size: 14px; }
+.empty .btn { margin-top: 12px; }
+
+/* Daily budget card */
+.db-top { display: flex; justify-content: space-between; align-items: flex-end; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
+.db-top .big { font-size: 30px; font-weight: 800; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+.db-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 14px; }
+.db-stats div { background: var(--surface-2); border-radius: 10px; padding: 9px 11px; }
+.db-stats span { display: block; font-size: 12px; color: var(--text-2); font-weight: 600; }
+.db-stats strong { font-variant-numeric: tabular-nums; font-size: 15px; }
+.thresholds { display: flex; justify-content: space-between; font-size: 11.5px; color: var(--text-3); margin-top: 6px; }
+
+/* Lists */
+.list { display: flex; flex-direction: column; }
+.row {
+  display: grid; grid-template-columns: 96px minmax(0, 1fr) auto auto; gap: 12px; align-items: center;
+  padding: 11px 4px; border-top: 1px solid var(--line);
+}
+.row:first-child { border-top: 0; }
+.row .date { font-size: 13px; color: var(--text-2); font-variant-numeric: tabular-nums; }
+.row .title { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.row .meta { font-size: 12.5px; color: var(--text-3); display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+.row .amt { font-weight: 700; font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; }
+.row .acts { display: flex; gap: 2px; }
+.row.compact { grid-template-columns: minmax(0, 1fr) auto; }
+.list-head {
+  display: grid; grid-template-columns: 96px minmax(0, 1fr) auto auto; gap: 12px; padding: 0 4px 8px;
+  font-size: 12px; font-weight: 700; color: var(--text-3); text-transform: uppercase; letter-spacing: .04em;
+}
+.summary-strip { display: flex; gap: 18px; flex-wrap: wrap; font-size: 14px; color: var(--text-2); }
+.summary-strip strong { color: var(--text); font-variant-numeric: tabular-nums; }
+
+/* Tables */
+.table-wrap { overflow-x: auto; }
+table.data { width: 100%; border-collapse: collapse; font-size: 14px; }
+table.data th { text-align: left; font-size: 12px; text-transform: uppercase; letter-spacing: .04em; color: var(--text-3); font-weight: 700; padding: 8px 10px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+table.data td { padding: 11px 10px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+table.data td.r, table.data th.r { text-align: right; font-variant-numeric: tabular-nums; }
+table.data tr:last-child td { border-bottom: 0; }
+table.data .meter { min-width: 90px; }
+
+/* Bills & goals */
+.tabs { display: flex; gap: 6px; flex-wrap: wrap; }
+.tabs button {
+  border: 1px solid var(--line); background: var(--surface); padding: 7px 14px; border-radius: 999px; cursor: pointer;
+  font-weight: 600; font-size: 14px; color: var(--text-2); display: inline-flex; gap: 6px; align-items: center;
+}
+.tabs button.on { background: var(--text); color: var(--bg); border-color: var(--text); }
+.tabs .count { font-size: 12px; opacity: .8; }
+.bill-grid, .goal-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; }
+.bill { display: flex; flex-direction: column; gap: 10px; }
+.bill .top { display: flex; justify-content: space-between; gap: 10px; align-items: flex-start; }
+.bill h3 { font-size: 16px; overflow-wrap: anywhere; }
+.bill .amt { font-size: 22px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.bill .acts, .goal .acts { display: flex; gap: 8px; flex-wrap: wrap; margin-top: auto; }
+.bill.overdue { border-color: var(--danger); }
+.goal { display: flex; flex-direction: column; gap: 10px; }
+.goal .figures { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.goal .figures strong { font-size: 21px; font-variant-numeric: tabular-nums; }
+.goal .desc { font-size: 14px; color: var(--text-2); overflow-wrap: anywhere; }
+.kv { display: flex; justify-content: space-between; font-size: 13.5px; color: var(--text-2); gap: 8px; }
+.kv strong { color: var(--text); font-variant-numeric: tabular-nums; }
+
+/* Settings */
+.settings { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; align-items: start; }
+.settings form { display: flex; flex-direction: column; gap: 14px; }
+.danger-zone { border-color: var(--danger); }
+
+/* ============================================================
+   Responsive
+   ============================================================ */
+@media (max-width: 1100px) {
+  .grid-3 { grid-template-columns: 1fr 1fr; }
+  .grid-3 > .span-3-sm { grid-column: 1 / -1; }
+}
+@media (max-width: 960px) {
+  .app { grid-template-columns: 1fr; }
+  .sidebar {
+    position: fixed; z-index: 50; left: 0; top: 0; bottom: 0; width: 272px; transform: translateX(-100%);
+    transition: transform .22s ease; box-shadow: 0 0 40px rgba(0,0,0,.2);
+  }
+  .app.nav-open .sidebar { transform: none; }
+  .app.nav-open .scrim { display: block; position: fixed; inset: 0; z-index: 40; background: rgba(0,0,0,.35); }
+  .topbar { padding: 12px 16px; }
+  .topbar .menu-btn { display: inline-flex; }
+  .topbar .add-btn { display: none; }
+  .view { padding: 18px 16px 110px; gap: 16px; }
+  .fab { display: inline-flex; }
+  .hero { grid-template-columns: 1fr; gap: 40px; padding-top: 24px; }
+  .features { grid-template-columns: 1fr 1fr; }
+  .grid-2, .settings { grid-template-columns: 1fr; }
+  .span-2 { grid-column: auto; }
+}
+@media (max-width: 640px) {
+  body { font-size: 14.5px; }
+  .grid-3 { grid-template-columns: 1fr; }
+  .features, .security-grid { grid-template-columns: 1fr; }
+  .form-grid { grid-template-columns: 1fr; }
+  .kpis { grid-template-columns: 1fr 1fr; gap: 10px; }
+  .kpi { padding: 13px 14px; }
+  .kpi .value { font-size: 20px; }
+  .card { padding: 15px; }
+  .row { grid-template-columns: minmax(0, 1fr) auto; gap: 4px 10px; }
+  .row .date { grid-column: 1 / -1; order: -1; font-size: 12px; }
+  .row .acts { grid-column: 1 / -1; justify-content: flex-end; }
+  .list-head { display: none; }
+  .db-stats { grid-template-columns: 1fr; }
+  .l-nav .actions .btn:not(.primary) { padding: 9px 10px; }
+  .preview .float { position: static; transform: none; width: auto; margin-top: 12px; }
+  .toolbar .field { min-width: calc(50% - 5px); flex: 1; }
+  .modal-foot .btn { flex: 1; }
+  .chart-box { height: 230px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+}
+@media print {
+  .sidebar, .topbar, .fab, #toasts, .toolbar .btn, .acts { display: none !important; }
+  .app { display: block; }
+  .card { box-shadow: none; break-inside: avoid; }
+}
+</style>
+</head>
+<body>
+
+<!-- ============================================================
+     LANDING PAGE (public)
+     ============================================================ -->
+<div id="landing" class="landing">
+  <div id="storageBanner" class="config-banner" hidden>
+    Your browser is blocking storage for this site (for example, a private window or strict privacy settings). You can try DailyBudget, but nothing will be saved after you close this tab.
+  </div>
+  <div id="corruptBanner" class="config-banner" hidden>
+    We found DailyBudget data in this browser but couldn't read it. <button class="link-btn" data-action="download-corrupt">Download that data</button> before starting over, or restore from a backup.
+  </div>
+  <header class="l-wrap l-nav">
+    <a class="logo" href="#" aria-label="DailyBudget home"><svg viewBox="0 0 64 64" aria-hidden="true"><rect width="64" height="64" rx="16" fill="var(--accent)"/><rect x="14" y="18" width="36" height="32" rx="6" fill="none" stroke="var(--accent-ink)" stroke-width="4"/><path d="M14 27h36" stroke="var(--accent-ink)" stroke-width="4"/><path d="M24 40l5 5 11-11" fill="none" stroke="var(--accent-ink)" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Daily<b>Budget</b></span></a>
+    <div class="actions">
+      <button class="icon-btn" data-action="toggle-theme" aria-label="Toggle dark mode" title="Toggle dark mode"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg></button>
+      <button class="btn ghost" data-action="restore">Restore backup</button>
+      <button class="btn primary" data-action="start">Start budgeting</button>
+    </div>
+  </header>
+
+  <main>
+    <section class="l-wrap hero">
+      <div>
+        <h1>Know what you can spend <em>today</em>.</h1>
+        <p class="lead">DailyBudget turns your income and expenses into one clear daily number. Set a daily limit, plan monthly category budgets, keep bills on schedule, and track savings goals. No sign-up, no bank login — everything stays private in your own browser.</p>
+        <div class="cta">
+          <button class="btn primary lg" data-action="start">Start budgeting — it's free</button>
+          <button class="btn lg" data-action="restore">Restore from a backup</button>
+        </div>
+        <p class="trust"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg> No account needed. Your numbers are saved on this device only and never uploaded.</p>
+      </div>
+      <div class="preview" aria-hidden="true">
+        <div class="card">
+          <div class="muted small">Left to spend today · example</div>
+          <div class="big num">$23.50</div>
+          <div class="meter lg half"><span style="width:61%"></span></div>
+          <div class="thresholds"><span>0%</span><span>50%</span><span>80%</span><span>100%</span></div>
+          <div style="margin-top:16px">
+            <div class="preview-row"><span>Groceries</span><strong class="num v-exp">−$18.40</strong></div>
+            <div class="preview-row"><span>Bus pass</span><strong class="num v-exp">−$8.10</strong></div>
+            <div class="preview-row"><span>Freelance payment</span><strong class="num v-inc">+$120.00</strong></div>
+          </div>
+        </div>
+        <div class="card float">
+          <div class="small muted">Emergency fund</div>
+          <strong class="num">$1,450 of $3,000</strong>
+          <div class="meter" style="margin-top:8px"><span style="width:48%"></span></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="l-section">
+      <div class="l-wrap">
+        <h2>Everything for everyday money, nothing extra</h2>
+        <p class="muted">Built for people who want a clear plan without connecting a bank account.</p>
+        <div class="features">
+          <div class="card feature"><div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></div><h3>Daily budget</h3><p>A daily limit with clear warnings at 50%, 80% and 100%, plus optional rollover of unused money.</p></div>
+          <div class="card feature"><div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h10"/></svg></div><h3>Fast manual entry</h3><p>Log income and expenses in seconds. Search, filter, sort and edit everything later.</p></div>
+          <div class="card feature"><div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="M7 15l4-4 3 3 5-6"/></svg></div><h3>Monthly &amp; category budgets</h3><p>Set limits for groceries, transport and more, and see what's left in each category.</p></div>
+          <div class="card feature"><div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg></div><h3>Bills on schedule</h3><p>Track upcoming, paid and overdue bills. Paying a bill never creates duplicate expenses.</p></div>
+          <div class="card feature"><div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l3 7h7l-5.5 4.5L18 21l-6-4-6 4 1.5-7.5L2 9h7z"/></svg></div><h3>Savings goals</h3><p>Earmark money for an emergency fund, a car or a trip and watch progress grow.</p></div>
+          <div class="card feature"><div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v12M7 10l5 5 5-5"/><path d="M4 21h16"/></svg></div><h3>Reports, export &amp; backup</h3><p>Charts for trends and categories, CSV export, and one-click backup files you can restore on any device.</p></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="l-section">
+      <div class="l-wrap">
+        <h2>Privacy and security</h2>
+        <p class="muted">This website has no server and no database. Your budget never leaves your device unless you download a backup yourself.</p>
+        <div class="security-grid">
+          <div class="card sec-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3l8 4v5c0 5-3.5 8-8 9-4.5-1-8-4-8-9V7z"/></svg><div><h4>Stays on your device</h4><p>Everything you enter is saved in your own browser's storage. Nobody else — including the site owner — can see it.</p></div></div>
+          <div class="card sec-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg><div><h4>No accounts, no bank credentials</h4><p>There's nothing to sign up for, and DailyBudget never asks for bank passwords, card numbers or account numbers.</p></div></div>
+          <div class="card sec-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M4.9 4.9l14.2 14.2"/></svg><div><h4>No tracking or AI</h4><p>No analytics, advertising trackers or AI services. Your transactions are not sent anywhere.</p></div></div>
+          <div class="card sec-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v12M7 10l5 5 5-5"/><path d="M4 21h16"/></svg><div><h4>Back up and move anytime</h4><p>Download a backup file, restore it on another phone or computer, export CSV, or erase everything with one click.</p></div></div>
+        </div>
+        <p class="muted small" style="margin-top:18px">Because your data lives in this browser: it doesn't sync between devices automatically, and clearing your browser's site data deletes it — so download a backup regularly. Anyone who uses the same browser profile can open your budget. DailyBudget is a planning tool, not a bank; balances reflect what you enter. This site's code is public on GitHub, but your data is never part of it.</p>
+      </div>
+    </section>
+  </main>
+
+  <footer class="l-footer">
+    <div class="l-wrap">
+      <span>© <span id="year"></span> DailyBudget</span>
+      <span>Personal budgeting tool · not financial advice</span>
+    </div>
+  </footer>
+</div>
+
+<!-- ============================================================
+     APP (main budgeting interface)
+     ============================================================ -->
+<div id="app" class="app" hidden>
+  <aside class="sidebar" id="sidebar" aria-label="Main navigation">
+    <a class="logo" href="#/dashboard" aria-label="DailyBudget dashboard"><svg viewBox="0 0 64 64" aria-hidden="true"><rect width="64" height="64" rx="16" fill="var(--accent)"/><rect x="14" y="18" width="36" height="32" rx="6" fill="none" stroke="var(--accent-ink)" stroke-width="4"/><path d="M14 27h36" stroke="var(--accent-ink)" stroke-width="4"/><path d="M24 40l5 5 11-11" fill="none" stroke="var(--accent-ink)" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Daily<b>Budget</b></span></a>
+    <nav class="nav" id="nav"></nav>
+    <div class="side-foot">
+      <div class="who" id="whoami"></div>
+      <div style="display:flex;gap:6px">
+        <button class="btn sm" style="flex:1" data-action="toggle-theme">Theme</button>
+        <button class="btn sm" style="flex:1" data-action="backup">Back up</button>
+      </div>
+    </div>
+  </aside>
+  <div class="scrim" data-action="close-nav"></div>
+  <div class="main">
+    <header class="topbar">
+      <button class="icon-btn menu-btn" data-action="open-nav" aria-label="Open menu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button>
+      <h1 id="viewTitle">Dashboard</h1>
+      <button class="btn primary add-btn" data-action="add-txn"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>Add transaction</button>
+    </header>
+    <main class="view" id="view" tabindex="-1"></main>
+  </div>
+  <button class="fab" data-action="add-txn" aria-label="Add transaction"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></button>
+</div>
+
+<dialog class="modal" id="modal" aria-labelledby="modalTitle">
+  <form id="modalForm" novalidate>
+    <div class="modal-head">
+      <h2 id="modalTitle"></h2>
+      <button type="button" class="icon-btn" data-action="modal-close" aria-label="Close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+    </div>
+    <div class="modal-body">
+      <div id="modalContent"></div>
+      <div id="modalError" class="form-error" role="alert" hidden></div>
+    </div>
+    <div class="modal-foot">
+      <button type="button" class="btn" data-action="modal-close" id="modalCancel">Cancel</button>
+      <button type="submit" class="btn primary" id="modalSubmit">Save</button>
+    </div>
+  </form>
+</dialog>
+
+<input type="file" id="restoreFile" accept=".json,application/json" hidden>
+<div id="toasts" aria-live="polite" aria-atomic="false"></div>
+
+<script>
+'use strict';
+/* =====================================================================
+   Constants
+   ===================================================================== */
+const INCOME_CATS = ['Salary', 'Business income', 'Freelance', 'Gifts', 'Refunds', 'Other income'];
+const EXPENSE_CATS = ['Rent or mortgage', 'Groceries', 'Restaurants', 'Transportation', 'Fuel', 'Utilities',
+  'Phone and internet', 'Healthcare', 'Education', 'Shopping', 'Family expenses', 'Insurance', 'Debt payments',
+  'Subscriptions', 'Entertainment', 'Other expenses'];
+const PAYMENT_METHODS = { cash: 'Cash', debit_card: 'Debit card', credit_card: 'Credit card', bank_transfer: 'Bank transfer',
+  mobile_payment: 'Mobile payment', check: 'Check', other: 'Other' };
+const BILL_TYPES = { rent: 'Rent', utilities: 'Utilities', phone_internet: 'Phone & internet', insurance: 'Insurance',
+  loan: 'Loan payment', credit_card: 'Credit card bill', subscription: 'Subscription', other: 'Other bill' };
+const BILL_TYPE_CATEGORY = { rent: 'Rent or mortgage', utilities: 'Utilities', phone_internet: 'Phone and internet',
+  insurance: 'Insurance', loan: 'Debt payments', credit_card: 'Debt payments', subscription: 'Subscriptions', other: 'Other expenses' };
+const RECURRENCE = { none: 'One-time', weekly: 'Weekly', biweekly: 'Every 2 weeks', monthly: 'Monthly', quarterly: 'Quarterly', yearly: 'Yearly' };
+const GOAL_TYPES = { emergency: 'Emergency fund', house: 'House', car: 'Car', education: 'Education', vacation: 'Vacation',
+  general: 'General savings', other: 'Other' };
+const CURRENCIES = ['USD', 'EUR', 'GBP', 'CAD', 'AUD', 'NZD', 'INR', 'BDT', 'PKR', 'JPY', 'CNY', 'KRW', 'SGD', 'HKD',
+  'AED', 'SAR', 'CHF', 'SEK', 'NOK', 'MXN', 'BRL', 'ZAR', 'NGN', 'PHP', 'MYR', 'IDR', 'TRY'];
+const LEVEL_LABEL = { ok: 'On track', half: '50% used', warn: '80% used', full: 'Limit reached', over: 'Over limit' };
+const PAGE_SIZE = 50;
+const MAX_CENTS = 99999999999999; // < 1,000,000,000,000.00
+const PALETTE = ['#0f766e', '#2563eb', '#d97706', '#7c3aed', '#db2777', '#059669', '#dc2626', '#0891b2', '#65a30d', '#9333ea', '#ea580c', '#475569'];
+
+const ICONS = {
+  dashboard: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>',
+  transactions: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M7 4v16M3 16l4 4 4-4M17 20V4M13 8l4-4 4 4"/></svg>',
+  budgets: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-9-9v9z"/><path d="M15 3.5A9 9 0 0 1 20.5 9H15z"/></svg>',
+  bills: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>',
+  goals: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.5"/></svg>',
+  reports: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="M8 17v-5M13 17V8M18 17v-9"/></svg>',
+  settings: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>',
+  edit: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>',
+  trash: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/></svg>',
+  info: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5v.5"/></svg>',
+  alert: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3l10 18H2z"/><path d="M12 10v5M12 18v.5"/></svg>',
+  note: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16v12l-4 4H4z"/><path d="M8 9h8M8 13h5"/></svg>'
+};
+const VIEWS = [
+  { id: 'dashboard', label: 'Dashboard' },
+  { id: 'transactions', label: 'Transactions' },
+  { id: 'budgets', label: 'Budgets' },
+  { id: 'bills', label: 'Bills' },
+  { id: 'goals', label: 'Savings goals' },
+  { id: 'reports', label: 'Reports' },
+  { id: 'settings', label: 'Settings' }
+];
+
+/* =====================================================================
+   App state (in memory only — cleared on sign-out)
+   ===================================================================== */
+const S = {
+  user: null, profile: null, prefs: null,
+  txns: [], budgets: [], bills: [], payments: [], goals: [],
+  idx: null, view: 'dashboard', charts: {},
+  dashDate: null,
+  tf: null,            // transaction filters
+  txLimit: PAGE_SIZE,
+  budgetMonth: null,
+  billTab: 'upcoming',
+  report: null,
+  entering: false,
+  corruptRaw: null
+};
+
+/* =====================================================================
+   Small utilities
+   ===================================================================== */
+const $ = (sel, root = document) => root.querySelector(sel);
+const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
+function esc(v) {
+  return String(v ?? '').replace(/[&<>"'`]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;', '`': '&#96;' }[c]));
+}
+const pad = n => String(n).padStart(2, '0');
+const ymd = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+function parseYmd(s) { const [y, m, d] = s.split('-').map(Number); return new Date(y, m - 1, d); }
+const todayStr = () => ymd(new Date());
+function addDays(s, n) { const d = parseYmd(s); d.setDate(d.getDate() + n); return ymd(d); }
+const monthStart = s => s.slice(0, 7) + '-01';
+function monthEnd(s) { const d = parseYmd(monthStart(s)); return ymd(new Date(d.getFullYear(), d.getMonth() + 1, 0)); }
+function addMonths(s, n) { const d = parseYmd(monthStart(s)); return ymd(new Date(d.getFullYear(), d.getMonth() + n, 1)); }
+function weekStartOf(s) { const ws = S.prefs ? Number(S.prefs.week_start) : 1; const d = parseYmd(s); d.setDate(d.getDate() - ((d.getDay() - ws + 7) % 7)); return ymd(d); }
+function daysBetween(a, b) { return Math.round((parseYmd(b) - parseYmd(a)) / 86400000); }
+function fmtDate(s, opts) { if (!s) return ''; return parseYmd(s).toLocaleDateString(undefined, opts || { month: 'short', day: 'numeric', year: 'numeric' }); }
+function fmtDateShort(s) { return parseYmd(s).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }); }
+function fmtMonth(s) { return parseYmd(monthStart(s)).toLocaleDateString(undefined, { month: 'long', year: 'numeric' }); }
+function fmtMonthShort(s) { return parseYmd(monthStart(s)).toLocaleDateString(undefined, { month: 'short', year: '2-digit' }); }
+function isValidDate(s) {
+  if (typeof s !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(s)) return false;
+  const d = parseYmd(s);
+  return ymd(d) === s && s >= '1900-01-01' && s <= '2100-12-31';
+}
+function relDays(s) {
+  const n = daysBetween(todayStr(), s);
+  if (n === 0) return 'Due today';
+  if (n === 1) return 'Due tomorrow';
+  if (n > 1) return `Due in ${n} days`;
+  if (n === -1) return '1 day overdue';
+  return `${-n} days overdue`;
+}
+function debounce(fn, ms) { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); }; }
+function clean(text, max) { return String(text ?? '').replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, '').trim().slice(0, max); }
+
+/** Parse a user-entered money amount into integer cents. Returns null if invalid. */
+function parseAmount(raw, { allowZero = false, allowNegative = false } = {}) {
+  let s = String(raw ?? '').trim().replace(/[,\s]/g, '');
+  let neg = false;
+  if (allowNegative && s.startsWith('-')) { neg = true; s = s.slice(1); }
+  if (!/^\d{1,12}(\.\d{1,2})?$/.test(s)) return null;
+  const cents = Math.round(Number(s) * 100);
+  if (!Number.isFinite(cents) || !Number.isSafeInteger(cents)) return null;
+  if (cents > MAX_CENTS) return null;
+  if (cents === 0 && !allowZero) return null;
+  return neg ? -cents : cents;
+}
+const centsToDb = c => (c / 100).toFixed(2);
+const toCents = v => Math.round(Number(v) * 100);
+
+const fmtCache = {};
+function money(cents, currency) {
+  const cur = currency || (S.prefs && S.prefs.currency) || 'USD';
+  if (!fmtCache[cur]) {
+    try { fmtCache[cur] = new Intl.NumberFormat(undefined, { style: 'currency', currency: cur }); }
+    catch { fmtCache[cur] = { format: v => `${cur} ${v.toFixed(2)}` }; }
+  }
+  return fmtCache[cur].format((cents || 0) / 100);
+}
+function pctOf(part, whole) { if (whole > 0) return (part / whole) * 100; return part > 0 ? Infinity : 0; }
+function levelFor(pct) { if (pct > 100) return 'over'; if (pct >= 100) return 'full'; if (pct >= 80) return 'warn'; if (pct >= 50) return 'half'; return 'ok'; }
+function pctLabel(pct) { return Number.isFinite(pct) ? `${Math.round(pct)}%` : '—'; }
+function meter(pct, extra = '') {
+  const lv = levelFor(pct);
+  const w = Number.isFinite(pct) ? Math.max(0, Math.min(100, pct)) : 100;
+  return `<div class="meter ${lv} ${extra}" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(Math.min(w, 100))}"><span style="width:${w.toFixed(1)}%"></span></div>`;
+}
+function badge(pct) { const lv = levelFor(pct); return `<span class="badge ${lv}">${LEVEL_LABEL[lv]}</span>`; }
+
+/* Toasts */
+function toast(msg, type = '') {
+  const el = document.createElement('div');
+  el.className = 'toast ' + type;
+  el.textContent = msg;
+  $('#toasts').appendChild(el);
+  setTimeout(() => el.remove(), type === 'error' ? 6500 : 3800);
+}
+
+/* =====================================================================
+   Error handling — friendly messages, no financial details in logs
+   ===================================================================== */
+function friendlyError(err) {
+  if (!err) return 'Something went wrong. Please try again.';
+  if (err.userMessage) return err.userMessage;
+  if (err.code === 'P0001' && err.message && err.message.length < 160) return err.message;
+  if (err.code === '23505') return 'That already exists (duplicate entry).';
+  if (err.code === 'QUOTA') return "Your browser's storage for this site is full. Download a backup, then delete old transactions to free space.";
+  if (err.code === 'NOTFOUND') return 'That item no longer exists. It may have been changed in another tab.';
+  if (err.code === 'NODATA') return 'No budget data is loaded. Reload the page and try again.';
+  return 'Something went wrong. Please try again.';
+}
+async function handleError(err, context) {
+  console.warn('[DailyBudget] action failed:', context, err && err.code ? err.code : '');
+  toast(friendlyError(err), 'error');
+}
+
+/* =====================================================================
+   Local data store
+   ---------------------------------------------------------------------
+   All data is kept in this browser's localStorage under one key, as JSON:
+     { app, format, created_at, last_backup_at, tables: { profiles, app_preferences,
+       transactions, budgets, bills, bill_payments, savings_goals } }
+   Nothing is ever sent over the network. The store offers a small
+   query interface (from/select/eq/order/insert/update/delete/rpc) and
+   enforces the same rules a database would: unique budgets per
+   month+category, one payment per bill cycle, cascades on delete, and
+   all-or-nothing writes (a failed save is rolled back).
+   ===================================================================== */
+const STORAGE_KEY = 'dailybudget-data-v1';
+const LOCAL_UID = 'local';
+const TABLES = ['profiles', 'app_preferences', 'transactions', 'budgets', 'bills', 'bill_payments', 'savings_goals'];
+const MONEY_FIELDS = ['amount', 'daily_budget', 'opening_balance', 'target_amount', 'saved_amount'];
+let DB = null;
+let storageAvailable = true;
+
+const nowIso = () => new Date().toISOString();
+const round2 = n => Math.round(Number(n) * 100) / 100;
+const clone = v => JSON.parse(JSON.stringify(v));
+function dbErr(code, message) { const e = new Error(message); e.code = code; return e; }
+function newId() {
+  if (window.crypto && typeof crypto.randomUUID === 'function') return crypto.randomUUID();
+  const b = crypto.getRandomValues(new Uint8Array(16));
+  b[6] = (b[6] & 15) | 64; b[8] = (b[8] & 63) | 128;
+  const h = [...b].map(x => x.toString(16).padStart(2, '0')).join('');
+  return `${h.slice(0, 8)}-${h.slice(8, 12)}-${h.slice(12, 16)}-${h.slice(16, 20)}-${h.slice(20)}`;
+}
+function storageWorks() {
+  try { const k = '__dailybudget_test__'; localStorage.setItem(k, '1'); localStorage.removeItem(k); return true; }
+  catch { return false; }
+}
+function defaultPrefs() {
+  const t = nowIso();
+  return { user_id: LOCAL_UID, currency: 'USD', daily_budget: 0, rollover_enabled: false, rollover_days: 7,
+    opening_balance: 0, opening_balance_date: todayStr(), week_start: 1, created_at: t, updated_at: t };
+}
+function emptyDb() {
+  const t = nowIso();
+  return {
+    app: 'DailyBudget', format: 1, created_at: t, last_backup_at: null,
+    tables: {
+      profiles: [{ id: LOCAL_UID, display_name: null, created_at: t, updated_at: t }],
+      app_preferences: [defaultPrefs()],
+      transactions: [], budgets: [], bills: [], bill_payments: [], savings_goals: []
+    }
+  };
+}
+function persist() {
+  if (!storageAvailable || !DB) return;
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(DB)); }
+  catch { throw dbErr('QUOTA', 'Storage full'); }
+}
+/** Run a change; if saving fails, restore the previous state. */
+function mutate(fn) {
+  if (!DB) throw dbErr('NODATA', 'No data');
+  const snapshot = JSON.stringify(DB.tables);
+  try { const r = fn(); persist(); return r; }
+  catch (e) { DB.tables = JSON.parse(snapshot); throw e; }
+}
+
+/* ---------- Validation of stored data and backup files ----------
+   Every row read from storage or from a backup file is checked and
+   cleaned here, so a damaged or tampered file cannot inject bad data. */
+const isObj = v => !!v && typeof v === 'object' && !Array.isArray(v);
+function sStr(v, max) { return typeof v === 'string' ? clean(v, max) : (typeof v === 'number' && Number.isFinite(v) ? clean(String(v), max) : ''); }
+function sMoney(v, { allowZero = true, allowNeg = false } = {}) {
+  const n = typeof v === 'number' ? v : (typeof v === 'string' && /^\s*-?\d{1,13}(\.\d+)?\s*$/.test(v) ? Number(v) : NaN);
+  if (!Number.isFinite(n)) return null;
+  const c = Math.round(n * 100);
+  if (Math.abs(c) > MAX_CENTS) return null;
+  if (!allowNeg && c < 0) return null;
+  if (!allowZero && c === 0) return null;
+  return c / 100;
+}
+const sDate = v => (typeof v === 'string' && isValidDate(v) ? v : null);
+const sIso = v => (typeof v === 'string' && v.length <= 40 && !isNaN(Date.parse(v)) ? v : nowIso());
+const sCur = v => (typeof v === 'string' && /^[A-Z]{3}$/.test(v) ? v : null);
+const oneOf = (v, obj, dflt) => (typeof v === 'string' && Object.prototype.hasOwnProperty.call(obj, v) ? v : dflt);
+function sId(v, seen) {
+  let id = typeof v === 'string' && /^[A-Za-z0-9-]{1,64}$/.test(v) ? v : newId();
+  while (seen.has(id)) id = newId();
+  seen.add(id);
+  return id;
+}
+/** Accepts a DailyBudget backup (or an export from the cloud version) and
+ *  returns { db, skipped } with every record validated. Throws a friendly
+ *  error for files that are not DailyBudget data. */
+function sanitizeData(input) {
+  if (!isObj(input)) fail('This file is not a DailyBudget backup.');
+  const src = isObj(input.tables) ? input.tables : input;
+  const pick = (...keys) => { for (const k of keys) if (src[k] !== undefined) return src[k]; return undefined; };
+  const arr = v => (Array.isArray(v) ? v.filter(isObj) : []);
+  const recognised = ['transactions', 'budgets', 'bills', 'savings_goals'].some(k => Array.isArray(src[k])) ||
+    isObj(pick('preferences')) || Array.isArray(pick('app_preferences'));
+  if (!recognised) fail('This file is not a DailyBudget backup.');
+  let skipped = 0;
+  const t = nowIso();
+
+  const profSrc = pick('profiles', 'profile');
+  const p0 = Array.isArray(profSrc) ? profSrc[0] : profSrc;
+  const profile = { id: LOCAL_UID, display_name: isObj(p0) ? (sStr(p0.display_name, 80) || null) : null, created_at: isObj(p0) ? sIso(p0.created_at) : t, updated_at: t };
+
+  const prSrc = pick('app_preferences', 'preferences');
+  const q = Array.isArray(prSrc) ? prSrc[0] : prSrc;
+  const prefs = defaultPrefs();
+  if (isObj(q)) {
+    prefs.currency = sCur(q.currency) || 'USD';
+    prefs.daily_budget = sMoney(q.daily_budget) ?? 0;
+    prefs.rollover_enabled = q.rollover_enabled === true;
+    const rd = Number(q.rollover_days);
+    prefs.rollover_days = Number.isInteger(rd) && rd >= 1 && rd <= 31 ? rd : 7;
+    prefs.opening_balance = sMoney(q.opening_balance, { allowNeg: true }) ?? 0;
+    prefs.opening_balance_date = sDate(q.opening_balance_date) || todayStr();
+    prefs.week_start = Number(q.week_start) === 0 ? 0 : 1;
+  }
+
+  const txIds = new Set();
+  const transactions = [];
+  for (const r of arr(pick('transactions'))) {
+    const type = r.type === 'income' || r.type === 'expense' ? r.type : null;
+    const amount = sMoney(r.amount, { allowZero: false });
+    const date = sDate(r.txn_date);
+    const category = sStr(r.category, 60);
+    if (!type || amount === null || !date || !category) { skipped++; continue; }
+    transactions.push({
+      id: sId(r.id, txIds), user_id: LOCAL_UID, type, amount, currency: sCur(r.currency) || prefs.currency,
+      txn_date: date, category, description: sStr(r.description, 200),
+      payment_method: oneOf(r.payment_method, PAYMENT_METHODS, 'other'), is_essential: type === 'expense' && r.is_essential === true,
+      notes: sStr(r.notes, 1000) || null, created_at: sIso(r.created_at), updated_at: sIso(r.updated_at)
+    });
+  }
+
+  const ids = new Set();
+  const budgetKeys = new Set();
+  const budgets = [];
+  for (const r of arr(pick('budgets'))) {
+    const month = sDate(r.month);
+    const amount = sMoney(r.amount);
+    const category = r.category === null || r.category === undefined ? null : (sStr(r.category, 60) || null);
+    const key = `${month}|${category}`;
+    if (!month || month.slice(8) !== '01' || amount === null || budgetKeys.has(key)) { skipped++; continue; }
+    budgetKeys.add(key);
+    budgets.push({ id: sId(r.id, ids), user_id: LOCAL_UID, month, category, amount, notes: sStr(r.notes, 500) || null, created_at: sIso(r.created_at), updated_at: sIso(r.updated_at) });
+  }
+
+  const bills = [];
+  for (const r of arr(pick('bills'))) {
+    const name = sStr(r.name, 80);
+    const amount = sMoney(r.amount, { allowZero: false });
+    const due = sDate(r.due_date);
+    const start = sDate(r.start_date) || due;
+    const pi = Number(r.period_index);
+    if (!name || amount === null || !due) { skipped++; continue; }
+    bills.push({
+      id: sId(r.id, ids), user_id: LOCAL_UID, name, bill_type: oneOf(r.bill_type, BILL_TYPES, 'other'),
+      category: sStr(r.category, 60) || 'Other expenses', amount, currency: sCur(r.currency) || prefs.currency,
+      start_date: start, due_date: due, period_index: Number.isInteger(pi) && pi >= 0 ? pi : 0,
+      recurrence: oneOf(r.recurrence, RECURRENCE, 'monthly'), status: ['pending', 'paid', 'cancelled'].includes(r.status) ? r.status : 'pending',
+      notes: sStr(r.notes, 1000) || null, created_at: sIso(r.created_at), updated_at: sIso(r.updated_at)
+    });
+  }
+  const billIds = new Set(bills.map(b => b.id));
+
+  const payments = [];
+  const cycles = new Set();
+  const linkedTx = new Set();
+  for (const r of arr(pick('bill_payments'))) {
+    const due = sDate(r.due_date), paid = sDate(r.paid_on), amount = sMoney(r.amount, { allowZero: false });
+    const cycle = `${r.bill_id}|${due}`;
+    if (!billIds.has(r.bill_id) || !due || !paid || amount === null || cycles.has(cycle)) { skipped++; continue; }
+    cycles.add(cycle);
+    let tid = typeof r.transaction_id === 'string' && txIds.has(r.transaction_id) && !linkedTx.has(r.transaction_id) ? r.transaction_id : null;
+    if (tid) linkedTx.add(tid);
+    payments.push({ id: sId(r.id, ids), user_id: LOCAL_UID, bill_id: r.bill_id, due_date: due, paid_on: paid, amount, transaction_id: tid, created_at: sIso(r.created_at) });
+  }
+
+  const goals = [];
+  for (const r of arr(pick('savings_goals'))) {
+    const name = sStr(r.name, 80);
+    const target = sMoney(r.target_amount, { allowZero: false });
+    const saved = sMoney(r.saved_amount);
+    if (!name || target === null) { skipped++; continue; }
+    goals.push({
+      id: sId(r.id, ids), user_id: LOCAL_UID, name, goal_type: oneOf(r.goal_type, GOAL_TYPES, 'general'),
+      target_amount: target, saved_amount: saved ?? 0, target_date: sDate(r.target_date),
+      description: sStr(r.description, 500) || null, created_at: sIso(r.created_at), updated_at: sIso(r.updated_at)
+    });
+  }
+
+  return {
+    skipped,
+    db: {
+      app: 'DailyBudget', format: 1, created_at: sIso(input.created_at),
+      last_backup_at: typeof input.last_backup_at === 'string' && !isNaN(Date.parse(input.last_backup_at)) ? input.last_backup_at : null,
+      tables: { profiles: [profile], app_preferences: [prefs], transactions, budgets, bills, bill_payments: payments, savings_goals: goals }
+    }
+  };
+}
+
+/* ---------- Query interface ---------- */
+const ROW_DEFAULTS = {
+  transactions: () => ({ currency: S.prefs ? S.prefs.currency : 'USD', description: '', payment_method: 'other', is_essential: false, notes: null }),
+  budgets: () => ({ category: null, notes: null }),
+  bills: () => ({ status: 'pending', period_index: 0, bill_type: 'other', currency: 'USD', notes: null }),
+  bill_payments: () => ({ transaction_id: null }),
+  savings_goals: () => ({ saved_amount: 0, goal_type: 'general', target_date: null, description: null }),
+  profiles: () => ({ display_name: null }),
+  app_preferences: () => defaultPrefs()
+};
+function normalizeRow(row) {
+  for (const k of MONEY_FIELDS) {
+    if (k in row && row[k] !== null) {
+      const n = Number(row[k]);
+      if (!Number.isFinite(n) || Math.abs(Math.round(n * 100)) > MAX_CENTS) throw dbErr('P0001', 'An amount is invalid.');
+      row[k] = round2(n);
+    }
+  }
+  return row;
+}
+function checkUnique(table, row) {
+  const T = DB.tables;
+  if (table === 'budgets' && T.budgets.some(b => b.id !== row.id && b.month === row.month && b.category === row.category))
+    throw dbErr('23505', 'Duplicate budget');
+  if (table === 'bill_payments' && T.bill_payments.some(p => p.id !== row.id && p.bill_id === row.bill_id && p.due_date === row.due_date))
+    throw dbErr('23505', 'Duplicate bill payment');
+}
+class LocalQuery {
+  constructor(table) {
+    if (!TABLES.includes(table)) throw new Error('Unknown table');
+    this.t = table; this.filters = []; this.orders = []; this.op = 'select'; this.mode = null; this.rng = null;
+  }
+  select() { return this; }
+  eq(col, val) { this.filters.push([col, val]); return this; }
+  order(col, opts) { this.orders.push([col, !opts || opts.ascending !== false]); return this; }
+  range(a, b) { this.rng = [a, b]; return this; }
+  insert(p) { this.op = 'insert'; this.payload = Array.isArray(p) ? p : [p]; return this; }
+  update(p) { this.op = 'update'; this.payload = p; return this; }
+  delete() { this.op = 'delete'; return this; }
+  single() { this.mode = 'single'; return this; }
+  maybeSingle() { this.mode = 'maybe'; return this; }
+  then(resolve, reject) { return Promise.resolve().then(() => this.run()).then(resolve, reject); }
+  run() {
+    try {
+      const out = this.exec();
+      if (this.mode === 'single') return out[0] ? { data: out[0], error: null } : { data: null, error: { code: 'NOTFOUND', message: 'Not found' } };
+      if (this.mode === 'maybe') return { data: out[0] || null, error: null };
+      return { data: out, error: null };
+    } catch (e) {
+      return { data: null, error: { code: e.code || 'ERR', message: e.message } };
+    }
+  }
+  exec() {
+    if (!DB) throw dbErr('NODATA', 'No data');
+    const match = r => this.filters.every(([k, v]) => r[k] === v);
+    const t = this.t;
+    if (this.op === 'select') {
+      let out = DB.tables[t].filter(match);
+      if (this.orders.length) {
+        out = out.slice().sort((a, b) => {
+          for (const [k, asc] of this.orders) { if (a[k] < b[k]) return asc ? -1 : 1; if (a[k] > b[k]) return asc ? 1 : -1; }
+          return 0;
+        });
+      }
+      if (this.rng) out = out.slice(this.rng[0], this.rng[1] + 1);
+      return clone(out);
+    }
+    return clone(mutate(() => {
+      const rows = DB.tables[t];
+      const stamp = nowIso();
+      if (this.op === 'insert') {
+        const added = this.payload.map(p => {
+          const row = normalizeRow({ ...ROW_DEFAULTS[t](), ...clone(p), created_at: stamp, updated_at: stamp });
+          if (t === 'profiles') row.id = LOCAL_UID; else { row.user_id = LOCAL_UID; if (t !== 'app_preferences') row.id = newId(); }
+          if (t === 'bill_payments') delete row.updated_at;
+          checkUnique(t, row);
+          rows.push(row);
+          return row;
+        });
+        return added;
+      }
+      if (this.op === 'update') {
+        const patch = clone(this.payload);
+        delete patch.id; delete patch.user_id; delete patch.created_at;   // owner and identity never change
+        const hit = rows.filter(match);
+        hit.forEach(r => { Object.assign(r, normalizeRow(patch)); if (t !== 'bill_payments') r.updated_at = stamp; checkUnique(t, r); });
+        return hit;
+      }
+      // delete
+      const gone = rows.filter(match);
+      const goneIds = new Set(gone.map(r => r.id));
+      DB.tables[t] = rows.filter(r => !match(r));
+      if (t === 'bills') DB.tables.bill_payments = DB.tables.bill_payments.filter(p => !goneIds.has(p.bill_id));
+      if (t === 'transactions') DB.tables.bill_payments.forEach(p => { if (goneIds.has(p.transaction_id)) p.transaction_id = null; });
+      return gone;
+    }));
+  }
+}
+/** Next due date counted from the bill's first due date, so month-end
+ *  dates don't drift (Jan 31 -> Feb 28 -> Mar 31). */
+function nextDue(start, recurrence, n) {
+  if (recurrence === 'weekly') return addDays(start, 7 * n);
+  if (recurrence === 'biweekly') return addDays(start, 14 * n);
+  const months = ({ monthly: 1, quarterly: 3, yearly: 12 }[recurrence] || 1) * n;
+  const [y, m, d] = start.split('-').map(Number);
+  const first = new Date(y, m - 1 + months, 1);
+  const last = new Date(first.getFullYear(), first.getMonth() + 1, 0).getDate();
+  return ymd(new Date(first.getFullYear(), first.getMonth(), Math.min(d, last)));
+}
+/** Pay the bill's current cycle: one payment record, optionally one linked
+ *  expense, then advance (recurring) or mark paid (one-time). All-or-nothing. */
+function recordBillPayment(a) {
+  const T = DB.tables;
+  const b = T.bills.find(x => x.id === a.p_bill_id);
+  if (!b) throw dbErr('P0001', 'Bill not found');
+  if (b.status !== 'pending') throw dbErr('P0001', 'This bill is not awaiting payment');
+  const amt = round2(a.p_amount ?? b.amount);
+  if (!(amt > 0) || Math.round(amt * 100) > MAX_CENTS) throw dbErr('P0001', 'Payment amount must be greater than zero');
+  const paidOn = isValidDate(a.p_paid_on) ? a.p_paid_on : todayStr();
+  if (T.bill_payments.some(p => p.bill_id === b.id && p.due_date === b.due_date)) throw dbErr('23505', 'Already paid');
+  const t = nowIso();
+  let txnId = null;
+  if (a.p_create_transaction) {
+    txnId = newId();
+    T.transactions.push({
+      id: txnId, user_id: LOCAL_UID, type: 'expense', amount: amt, currency: b.currency, txn_date: paidOn, category: b.category,
+      description: ('Bill payment: ' + b.name).slice(0, 200), payment_method: oneOf(a.p_payment_method, PAYMENT_METHODS, 'other'),
+      is_essential: true, notes: 'Bill cycle due ' + b.due_date, created_at: t, updated_at: t
+    });
+  }
+  const pid = newId();
+  T.bill_payments.push({ id: pid, user_id: LOCAL_UID, bill_id: b.id, due_date: b.due_date, paid_on: paidOn, amount: amt, transaction_id: txnId, created_at: t });
+  if (b.recurrence === 'none') b.status = 'paid';
+  else { b.period_index += 1; b.due_date = nextDue(b.start_date, b.recurrence, b.period_index); }
+  b.updated_at = t;
+  return pid;
+}
+const store = {
+  from: table => new LocalQuery(table),
+  rpc: async (name, args) => {
+    try {
+      if (name !== 'record_bill_payment') throw dbErr('ERR', 'Unknown action');
+      return { data: mutate(() => recordBillPayment(args || {})), error: null };
+    } catch (e) {
+      return { data: null, error: { code: e.code || 'ERR', message: e.message } };
+    }
+  }
+};
+
+/* =====================================================================
+   Modal helpers
+   ===================================================================== */
+let modalHandler = null;
+function openModal({ title, body, submitLabel = 'Save', danger = false, cancelLabel = 'Cancel', hideCancel = false, onSubmit, onOpen }) {
+  const dlg = $('#modal');
+  $('#modalTitle').textContent = title;
+  $('#modalContent').innerHTML = body;
+  $('#modalError').hidden = true;
+  const submit = $('#modalSubmit');
+  submit.textContent = submitLabel;
+  submit.className = 'btn ' + (danger ? 'danger solid' : 'primary');
+  submit.disabled = false;
+  $('#modalCancel').textContent = cancelLabel;
+  $('#modalCancel').hidden = hideCancel;
+  modalHandler = onSubmit;
+  if (!dlg.open) dlg.showModal();
+  if (onOpen) onOpen($('#modalContent'));
+  const first = $('#modalContent input:not([type=hidden]):not([readonly]), #modalContent select, #modalContent textarea');
+  if (first) setTimeout(() => first.focus(), 30);
+}
+function closeModal() { const dlg = $('#modal'); if (dlg.open) dlg.close(); modalHandler = null; $('#modalContent').innerHTML = ''; }
+function modalError(msg) { const e = $('#modalError'); e.textContent = msg; e.hidden = false; }
+function confirmDialog(title, message, { confirmLabel = 'Delete', danger = true } = {}) {
+  return new Promise(resolve => {
+    let done = false;
+    openModal({
+      title, body: `<p>${esc(message)}</p>`, submitLabel: confirmLabel, danger,
+      onSubmit: async () => { done = true; resolve(true); }
+    });
+    $('#modal').addEventListener('close', () => { if (!done) resolve(false); }, { once: true });
+  });
+}
+$('#modalForm').addEventListener('submit', async e => {
+  e.preventDefault();
+  if (!modalHandler) return closeModal();
+  const btn = $('#modalSubmit');
+  btn.disabled = true;
+  $('#modalError').hidden = true;
+  try {
+    const result = await modalHandler(new FormData(e.target), e.target);
+    if (result !== false) closeModal();
+  } catch (err) {
+    modalError(err && err.userMessage ? err.userMessage : friendlyError(err));
+  } finally {
+    btn.disabled = false;
+  }
+});
+function fail(msg) { const e = new Error(msg); e.userMessage = msg; throw e; }
+
+/* =====================================================================
+   Theme
+   ===================================================================== */
+function applyTheme() {
+  let t = null;
+  try { t = localStorage.getItem('dailybudget-theme'); } catch { /* storage unavailable */ }
+  if (t === 'light' || t === 'dark') document.documentElement.setAttribute('data-theme', t);
+  else document.documentElement.removeAttribute('data-theme');
+}
+function toggleTheme() {
+  const isDark = document.documentElement.getAttribute('data-theme') === 'dark' ||
+    (!document.documentElement.hasAttribute('data-theme') && matchMedia('(prefers-color-scheme: dark)').matches);
+  try { localStorage.setItem('dailybudget-theme', isDark ? 'light' : 'dark'); } catch { /* ignore */ }
+  applyTheme();
+  if (S.user) renderView();
+}
+
+/* =====================================================================
+   App lifecycle (no accounts — one private budget per browser)
+   ===================================================================== */
+async function enterApp() {
+  if (S.entering) return;
+  S.entering = true;
+  S.user = { id: LOCAL_UID };
+  try {
+    await loadAll();
+  } catch (err) {
+    S.entering = false;
+    S.user = null;
+    await handleError(err, 'load');
+    return;
+  }
+  S.entering = false;
+  const t = todayStr();
+  S.dashDate = t;
+  S.budgetMonth = monthStart(t);
+  S.tf = { q: '', type: 'all', category: 'all', essential: 'all', method: 'all', period: 'month', anchor: t, from: monthStart(t), to: t, sort: 'date_desc' };
+  S.txLimit = PAGE_SIZE;
+  S.report = { preset: 'last6', from: addMonths(t, -5), to: monthEnd(t) };
+  $('#landing').hidden = true;
+  $('#app').hidden = false;
+  const fromHash = location.hash.replace(/^#\/?/, '');
+  S.view = VIEWS.some(v => v.id === fromHash) ? fromHash : 'dashboard';
+  renderNav();
+  renderWho();
+  renderView();
+}
+function wipeState() {
+  destroyCharts();
+  Object.assign(S, { user: null, profile: null, prefs: null, txns: [], budgets: [], bills: [], payments: [], goals: [], idx: null });
+  $('#view').innerHTML = '';
+}
+function showLanding(message) {
+  wipeState();
+  closeModal();
+  $('#app').hidden = true;
+  $('#landing').hidden = false;
+  if (location.hash) history.replaceState(null, '', location.pathname);
+  if (message) toast(message);
+}
+function requestPersistentStorage() {
+  // Asks the browser not to clear this site's data automatically when space is low.
+  try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {}); } catch { /* not supported */ }
+}
+async function startFresh() {
+  if (DB) return enterApp();
+  if (S.corruptRaw) {
+    const ok = await confirmDialog('Start over?', 'The data saved in this browser could not be read. Starting fresh will replace it. Download the unreadable data first if you might need it.', { confirmLabel: 'Start fresh' });
+    if (!ok) return;
+  }
+  DB = emptyDb();
+  try { persist(); } catch (err) { DB = null; return handleError(err, 'start'); }
+  S.corruptRaw = null;
+  $('#corruptBanner').hidden = true;
+  requestPersistentStorage();
+  await enterApp();
+  if (S.user) openQuickSetup();
+}
+function openQuickSetup() {
+  openModal({
+    title: 'Welcome to DailyBudget', submitLabel: 'Save and start', cancelLabel: 'Skip for now',
+    body: `<p class="muted" style="margin-bottom:14px">Three quick settings. You can change them any time in Settings.</p>
+      <div class="form-grid">
+        <label class="field"><span>Currency</span><select class="input" name="currency">${CURRENCIES.map(c => `<option ${c === 'USD' ? 'selected' : ''}>${c}</option>`).join('')}</select></label>
+        <label class="field"><span>Daily spending limit</span><input class="input num" name="daily_budget" inputmode="decimal" placeholder="e.g. 40.00"><span class="hint">Leave blank to skip.</span></label>
+        <label class="field full"><span>Money you have right now (opening balance)</span><input class="input num" name="opening_balance" inputmode="decimal" placeholder="e.g. 1250.00"><span class="hint">Cash plus bank balances you want to track. This is your own number — it isn't linked to any bank.</span></label>
+      </div>
+      <div class="notice" style="margin-top:14px">${ICONS.info}<span>Your budget is saved only in this browser. Use <strong>Back up</strong> now and then to keep a copy safe.</span></div>`,
+    onSubmit: async fd => {
+      const currency = String(fd.get('currency'));
+      if (!/^[A-Z]{3}$/.test(currency)) fail('Choose a currency.');
+      const dRaw = String(fd.get('daily_budget') || '').trim();
+      const daily = dRaw ? parseAmount(dRaw, { allowZero: true }) : 0;
+      if (daily === null) fail('Enter a valid daily limit, like 40 or 40.50.');
+      const oRaw = String(fd.get('opening_balance') || '').trim();
+      const open = oRaw ? parseAmount(oRaw, { allowZero: true, allowNegative: true }) : 0;
+      if (open === null) fail('Enter a valid amount, like 1250 or 1250.75.');
+      const { data, error } = await store.from('app_preferences').update({
+        currency, daily_budget: centsToDb(daily), opening_balance: centsToDb(open), opening_balance_date: todayStr()
+      }).eq('user_id', LOCAL_UID).select().single();
+      if (error) throw error;
+      S.prefs = data;
+      reindex();
+      renderView();
+    }
+  });
+}
+function storageNote() {
+  if (!storageAvailable) {
+    return `<div class="notice danger">${ICONS.alert}<span>Your browser is blocking storage for this site, so nothing will be kept after you close this tab. Turn off private browsing or allow site data — or <button class="link-btn" data-action="backup">download a backup</button> before leaving.</span></div>`;
+  }
+  const last = DB && DB.last_backup_at;
+  if (S.txns.length >= 5 && (!last || Date.now() - Date.parse(last) > 30 * 86400000)) {
+    return `<div class="notice warn">${ICONS.info}<span>${last ? 'Your last backup was more than 30 days ago.' : "You haven't made a backup yet."} Your budget lives only in this browser — if browser data is cleared, it's gone. <button class="link-btn" data-action="backup">Download a backup now</button></span></div>`;
+  }
+  return '';
+}
+
+/* =====================================================================
+   Data loading
+   ===================================================================== */
+async function fetchAll(table, orderCol, ascending = false) {
+  const out = [];
+  const size = 1000;
+  for (let from = 0; ; from += size) {
+    const { data, error } = await store.from(table).select('*').eq('user_id', S.user.id)
+      .order(orderCol, { ascending }).order('id', { ascending: true }).range(from, from + size - 1);
+    if (error) throw error;
+    out.push(...data);
+    if (data.length < size) break;
+  }
+  return out;
+}
+async function loadProfileAndPrefs() {
+  const uid = S.user.id;
+  let { data: profile, error: e1 } = await store.from('profiles').select('*').eq('id', uid).maybeSingle();
+  if (e1) throw e1;
+  if (!profile) {
+    const r = await store.from('profiles').insert({ id: uid }).select().single();
+    if (r.error) throw r.error;
+    profile = r.data;
+  }
+  let { data: prefs, error: e2 } = await store.from('app_preferences').select('*').eq('user_id', uid).maybeSingle();
+  if (e2) throw e2;
+  if (!prefs) {
+    const r = await store.from('app_preferences').insert({ user_id: uid }).select().single();
+    if (r.error) throw r.error;
+    prefs = r.data;
+  }
+  S.profile = profile;
+  S.prefs = prefs;
+}
+async function loadTxns() { S.txns = await fetchAll('transactions', 'txn_date', false); reindex(); }
+async function loadBudgets() { S.budgets = await fetchAll('budgets', 'month', false); }
+async function loadBills() { S.bills = await fetchAll('bills', 'due_date', true); }
+async function loadPayments() { S.payments = await fetchAll('bill_payments', 'paid_on', false); }
+async function loadGoals() { S.goals = await fetchAll('savings_goals', 'created_at', true); }
+async function loadAll() {
+  await loadProfileAndPrefs();
+  await Promise.all([loadTxns(), loadBudgets(), loadBills(), loadPayments(), loadGoals()]);
+}
+
+/* =====================================================================
+   Indexing & calculations
+   Totals use ONLY transactions in the display currency (no silent
+   currency conversion). All sums are done in integer cents.
+   ===================================================================== */
+function reindex() {
+  const cur = S.prefs ? S.prefs.currency : 'USD';
+  S.txns.forEach(t => { t._c = toCents(t.amount); });
+  S.txns.sort((a, b) => (a.txn_date < b.txn_date ? 1 : a.txn_date > b.txn_date ? -1 : (a.created_at < b.created_at ? 1 : -1)));
+  const byDay = new Map();
+  let other = 0;
+  const list = [];
+  for (const t of S.txns) {
+    if (t.currency !== cur) { other++; continue; }
+    list.push(t);
+    let d = byDay.get(t.txn_date);
+    if (!d) { d = { inc: 0, exp: 0 }; byDay.set(t.txn_date, d); }
+    if (t.type === 'income') d.inc += t._c; else d.exp += t._c;
+  }
+  S.idx = { cur, byDay, other, list };
+}
+function dayTotals(date) { return S.idx.byDay.get(date) || { inc: 0, exp: 0 }; }
+function rangeTxns(from, to) { return S.idx.list.filter(t => t.txn_date >= from && t.txn_date <= to); }
+function rangeTotals(from, to) {
+  let inc = 0, exp = 0;
+  for (const [d, v] of S.idx.byDay) if (d >= from && d <= to) { inc += v.inc; exp += v.exp; }
+  return { inc, exp, net: inc - exp };
+}
+/** Tracked balance at the end of `date`:
+ *  opening balance (as of opening_balance_date) + income − expenses dated
+ *  on/after the opening date and on/before `date`. Earlier transactions are
+ *  treated as history already reflected in the opening balance. */
+function balanceAsOf(date) {
+  const openDate = S.prefs.opening_balance_date;
+  let bal = date >= openDate ? toCents(S.prefs.opening_balance) : 0;
+  for (const [d, v] of S.idx.byDay) if (d >= openDate && d <= date) bal += v.inc - v.exp;
+  return bal;
+}
+function earmarkedCents() { return S.goals.reduce((s, g) => s + toCents(g.saved_amount), 0); }
+function accountStartDate() { return S.profile && S.profile.created_at ? ymd(new Date(S.profile.created_at)) : todayStr(); }
+
+/** Daily budget for a given date.
+ *  Rollover (when enabled): carry = max(0, Σ over each of the previous
+ *  N days of (daily limit − that day's expenses)), counting only days on or
+ *  after the account was created. Income is never subtracted from spending. */
+function dailyInfo(date) {
+  const limit = toCents(S.prefs.daily_budget);
+  const spent = dayTotals(date).exp;
+  let carry = 0, carryDays = 0;
+  if (S.prefs.rollover_enabled && limit > 0) {
+    const n = Number(S.prefs.rollover_days) || 7;
+    const start = accountStartDate();
+    let sum = 0;
+    for (let i = 1; i <= n; i++) {
+      const d = addDays(date, -i);
+      if (d < start) break;
+      sum += limit - dayTotals(d).exp;
+      carryDays++;
+    }
+    carry = Math.max(0, sum);
+  }
+  const effective = limit + carry;
+  const pct = pctOf(spent, effective);
+  return { limit, carry, carryDays, effective, spent, remaining: effective - spent, pct, level: levelFor(pct) };
+}
+function budgetsForMonth(m) { return S.budgets.filter(b => b.month === m); }
+function monthCategorySpend(m) {
+  const map = new Map();
+  for (const t of rangeTxns(m, monthEnd(m))) if (t.type === 'expense') map.set(t.category, (map.get(t.category) || 0) + t._c);
+  return map;
+}
+function monthBudgetInfo(m) {
+  const rows = budgetsForMonth(m);
+  const overall = rows.find(b => b.category === null) || null;
+  const spend = monthCategorySpend(m);
+  const totalExp = [...spend.values()].reduce((a, b) => a + b, 0);
+  const cats = rows.filter(b => b.category !== null).map(b => {
+    const budget = toCents(b.amount), actual = spend.get(b.category) || 0;
+    const pct = pctOf(actual, budget);
+    return { row: b, category: b.category, budget, actual, remaining: budget - actual, pct, level: levelFor(pct) };
+  }).sort((a, b) => a.category.localeCompare(b.category));
+  const budgeted = new Set(cats.map(c => c.category));
+  let unbudgeted = 0;
+  for (const [c, v] of spend) if (!budgeted.has(c)) unbudgeted += v;
+  const ob = overall ? toCents(overall.amount) : 0;
+  return {
+    overall, overallBudget: ob, totalExp, overallPct: pctOf(totalExp, ob), cats, unbudgeted,
+    catBudgetSum: cats.reduce((s, c) => s + c.budget, 0)
+  };
+}
+function billState(b) {
+  if (b.status !== 'pending') return b.status;
+  return b.due_date < todayStr() ? 'overdue' : 'upcoming';
+}
+function knownCategories(type) {
+  const base = type === 'income' ? INCOME_CATS : type === 'expense' ? EXPENSE_CATS : [...EXPENSE_CATS, ...INCOME_CATS];
+  const used = new Set(S.txns.filter(t => type === 'any' || !type || t.type === type).map(t => t.category));
+  if (type !== 'income') S.budgets.forEach(b => b.category && used.add(b.category));
+  return [...new Set([...base, ...[...used].sort()])];
+}
+
+/* =====================================================================
+   Navigation & rendering
+   ===================================================================== */
+function renderNav() {
+  $('#nav').innerHTML = VIEWS.map(v => `<button type="button" data-action="nav" data-view="${v.id}" class="${v.id === S.view ? 'on' : ''}">${ICONS[v.id]}<span>${esc(v.label)}</span></button>`).join('');
+}
+function renderWho() {
+  const name = S.profile && S.profile.display_name ? S.profile.display_name : 'My budget';
+  $('#whoami').innerHTML = `<strong>${esc(name)}</strong>${storageAvailable ? 'Saved privately in this browser' : 'Not saved — browser storage is blocked'}`;
+}
+function go(view) {
+  if (!VIEWS.some(v => v.id === view)) view = 'dashboard';
+  S.view = view;
+  if (location.hash !== '#/' + view) history.pushState(null, '', '#/' + view);
+  $('#app').classList.remove('nav-open');
+  renderNav();
+  renderView();
+  window.scrollTo(0, 0);
+}
+function destroyCharts() { Object.values(S.charts).forEach(c => { try { c.destroy(); } catch { /* ignore */ } }); S.charts = {}; }
+function renderView() {
+  if (!S.user || !S.idx) return;
+  destroyCharts();
+  $('#viewTitle').textContent = (VIEWS.find(v => v.id === S.view) || VIEWS[0]).label;
+  document.title = `${(VIEWS.find(v => v.id === S.view) || VIEWS[0]).label} · DailyBudget`;
+  const fn = { dashboard: renderDashboard, transactions: renderTransactions, budgets: renderBudgets, bills: renderBills,
+    goals: renderGoals, reports: renderReports, settings: renderSettings }[S.view] || renderDashboard;
+  fn();
+}
+function currencyNote() {
+  if (!S.idx.other) return '';
+  return `<div class="notice warn">${ICONS.info}<span>${S.idx.other} transaction${S.idx.other === 1 ? ' is' : 's are'} recorded in a currency other than ${esc(S.idx.cur)}. Those are listed in Transactions but left out of totals and charts, because DailyBudget does not convert currencies.</span></div>`;
+}
+function emptyState(text, action, label) {
+  return `<div class="empty">${esc(text)}${action ? `<br><button class="btn primary sm" data-action="${action}">${esc(label)}</button>` : ''}</div>`;
+}
+
+/* ---------- Charts ---------- */
+function themeColors() {
+  const cs = getComputedStyle(document.documentElement);
+  const g = n => cs.getPropertyValue(n).trim();
+  return { text: g('--text-2'), faint: g('--text-3'), grid: g('--line'), inc: g('--inc'), exp: g('--exp'), accent: g('--accent'), danger: g('--danger'), surface: g('--surface'), half: g('--half') };
+}
+function drawChart(id, config) {
+  const canvas = document.getElementById(id);
+  if (!canvas) return;
+  if (typeof window.Chart === 'undefined') {
+    canvas.parentElement.innerHTML = '<div class="empty">Charts could not be loaded. Check your connection.</div>';
+    return;
+  }
+  const c = themeColors();
+  Chart.defaults.color = c.text;
+  Chart.defaults.borderColor = c.grid;
+  Chart.defaults.font.family = getComputedStyle(document.body).fontFamily;
+  if (S.charts[id]) S.charts[id].destroy();
+  S.charts[id] = new Chart(canvas, config);
+}
+function moneyTick(v) { return money(Math.round(v * 100)).replace(/\.00$/, ''); }
+function baseOpts(extra = {}) {
+  return Object.assign({
+    responsive: true, maintainAspectRatio: false, animation: { duration: 300 },
+    interaction: { mode: 'index', intersect: false },
+    plugins: {
+      legend: { position: 'bottom', labels: { boxWidth: 10, boxHeight: 10, usePointStyle: true } },
+      tooltip: { callbacks: { label: ctx => `${ctx.dataset.label}: ${money(Math.round(ctx.parsed.y * 100))}` } }
+    },
+    scales: {
+      x: { grid: { display: false }, ticks: { maxRotation: 0, autoSkip: true, maxTicksLimit: 10 } },
+      y: { beginAtZero: true, ticks: { callback: moneyTick, maxTicksLimit: 6 }, grid: { color: themeColors().grid } }
+    }
+  }, extra);
+}
+function doughnutChart(id, entries) {
+  const c = themeColors();
+  drawChart(id, {
+    type: 'doughnut',
+    data: { labels: entries.map(e => e[0]), datasets: [{ data: entries.map(e => e[1] / 100), backgroundColor: entries.map((_, i) => PALETTE[i % PALETTE.length]), borderColor: c.surface, borderWidth: 2 }] },
+    options: {
+      responsive: true, maintainAspectRatio: false, cutout: '62%',
+      plugins: {
+        legend: { position: 'right', labels: { boxWidth: 10, boxHeight: 10, usePointStyle: true } },
+        tooltip: { callbacks: { label: ctx => { const tot = ctx.dataset.data.reduce((a, b) => a + b, 0); return `${ctx.label}: ${money(Math.round(ctx.parsed * 100))} (${Math.round(ctx.parsed / tot * 100)}%)`; } } }
+      }
+    }
+  });
+  if (window.innerWidth < 640 && S.charts[id]) { S.charts[id].options.plugins.legend.position = 'bottom'; S.charts[id].update(); }
+}
+function topCategories(map, n = 8) {
+  const arr = [...map.entries()].sort((a, b) => b[1] - a[1]);
+  if (arr.length <= n) return arr;
+  const head = arr.slice(0, n - 1);
+  head.push(['All others', arr.slice(n - 1).reduce((s, e) => s + e[1], 0)]);
+  return head;
+}
+
+/* =====================================================================
+   VIEW: Dashboard
+   ===================================================================== */
+function renderDashboard() {
+  const d = S.dashDate;
+  const m = monthStart(d);
+  const day = dayTotals(d);
+  const mt = rangeTotals(m, monthEnd(m) < d ? monthEnd(m) : d);
+  const mtFull = rangeTotals(m, monthEnd(m));
+  const bal = balanceAsOf(d);
+  const ear = earmarkedCents();
+  const avail = bal - ear;
+  const di = dailyInfo(d);
+  const mb = monthBudgetInfo(m);
+  const isToday = d === todayStr();
+  const dayLabel = isToday ? 'Today' : fmtDate(d, { month: 'short', day: 'numeric' });
+  const monthLabel = fmtMonth(m);
+  const monthToDate = d <= todayStr();
+  const throughLabel = isToday ? ' · to date' : ` · through ${fmtDateShort(d)}`;
+
+  const upcoming = S.bills.filter(b => b.status === 'pending' && b.due_date <= addDays(todayStr(), 30)).sort((a, b) => a.due_date.localeCompare(b.due_date)).slice(0, 6);
+  const recent = S.txns.slice(0, 8);
+
+  let dailyCard;
+  if (di.limit <= 0) {
+    dailyCard = `<div class="card"><div class="card-head"><h3>Daily budget</h3></div>${emptyState('Set a daily spending limit to see how much you can spend each day.', 'goto-settings', 'Set daily limit')}</div>`;
+  } else {
+    const warnText = {
+      ok: '', half: 'You have used half of the day\'s budget.', warn: 'Careful — 80% of the day\'s budget is used.',
+      full: 'You have reached the day\'s limit.', over: `You are over the limit by ${money(-di.remaining)}.`
+    }[di.level];
+    dailyCard = `<div class="card">
+      <div class="card-head"><div><h3>Daily budget</h3><div class="sub">${esc(dayLabel)}</div></div>${badge(di.pct)}</div>
+      <div class="db-top"><div><div class="muted small">${di.remaining >= 0 ? 'Remaining' : 'Over by'}</div><div class="big ${di.remaining < 0 ? 'v-neg' : ''}">${money(Math.abs(di.remaining))}</div></div><div class="muted small num">${pctLabel(di.pct)} used</div></div>
+      ${meter(di.pct, 'lg')}
+      <div class="thresholds"><span>0%</span><span>50%</span><span>80%</span><span>100%</span></div>
+      ${warnText ? `<div class="notice ${di.level === 'half' ? '' : di.level === 'warn' ? 'warn' : 'danger'}" style="margin-top:12px">${ICONS.alert}<span>${esc(warnText)}</span></div>` : ''}
+      <div class="db-stats">
+        <div><span>Daily limit</span><strong>${money(di.limit)}</strong></div>
+        <div><span>Rollover</span><strong>${S.prefs.rollover_enabled ? money(di.carry) : 'Off'}</strong></div>
+        <div><span>Spent</span><strong>${money(di.spent)}</strong></div>
+      </div>
+      ${S.prefs.rollover_enabled ? `<p class="hint" style="margin-top:10px">Rollover = unused budget from the previous ${di.carryDays} day${di.carryDays === 1 ? '' : 's'} (limit minus that day's expenses, summed, never below zero). Income does not add to the daily budget.</p>` : ''}
+    </div>`;
+  }
+
+  const utilRows = mb.cats.slice().sort((a, b) => (Number.isFinite(b.pct) ? b.pct : 1e9) - (Number.isFinite(a.pct) ? a.pct : 1e9)).slice(0, 5);
+  const utilCard = `<div class="card">
+    <div class="card-head"><div><h3>Budget utilization</h3><div class="sub">${esc(monthLabel)}</div></div><button class="btn sm ghost" data-action="nav" data-view="budgets">Manage</button></div>
+    ${mb.overall ? `<div style="margin-bottom:14px"><div class="kv"><span>Monthly budget</span><strong>${money(mb.totalExp)} / ${money(mb.overallBudget)}</strong></div><div style="margin:6px 0 4px">${meter(mb.overallPct)}</div><div class="kv"><span>${badge(mb.overallPct)}</span><span>${mb.overallBudget - mb.totalExp >= 0 ? money(mb.overallBudget - mb.totalExp) + ' left' : money(mb.totalExp - mb.overallBudget) + ' over'}</span></div></div>` : ''}
+    ${utilRows.length ? utilRows.map(c => `<div style="margin-top:10px"><div class="kv"><span>${esc(c.category)}</span><strong>${money(c.actual)} / ${money(c.budget)}</strong></div><div style="margin-top:5px">${meter(c.pct)}</div></div>`).join('')
+      : (!mb.overall ? emptyState('No budgets for this month yet.', 'goto-budgets', 'Create a budget') : '<p class="hint">Add category limits to track each category.</p>')}
+  </div>`;
+
+  const catMap = monthCategorySpend(m);
+
+  $('#view').innerHTML = `
+    <div class="toolbar">
+      <label class="field"><span>Viewing date</span><input class="input" type="date" id="dashDate" value="${esc(d)}" min="1900-01-01" max="2100-12-31"></label>
+      ${isToday ? '' : '<button class="btn" data-action="dash-today">Back to today</button>'}
+      <div class="grow"></div>
+      <span class="muted small">All amounts in ${esc(S.idx.cur)}</span>
+    </div>
+    ${storageNote()}${currencyNote()}
+    <div class="kpis">
+      <div class="card kpi hero-kpi"><div class="label">Tracked balance</div><div class="value">${money(bal)}</div><div class="foot">Opening balance + income − expenses${isToday ? '' : ', as of ' + esc(fmtDateShort(d))}</div></div>
+      <div class="card kpi"><div class="label">Set aside for goals</div><div class="value">${money(ear)}</div><div class="foot">Part of the balance, earmarked</div></div>
+      <div class="card kpi"><div class="label">Available to spend</div><div class="value ${avail < 0 ? 'v-neg' : ''}">${money(avail)}</div><div class="foot">Balance minus goal earmarks</div></div>
+    </div>
+    ${avail < 0 ? `<div class="notice warn">${ICONS.alert}<span>Your goal earmarks are larger than your tracked balance. Consider lowering a goal's saved amount or checking your opening balance in Settings.</span></div>` : ''}
+    <div class="kpis">
+      <div class="card kpi"><div class="label">${esc(dayLabel)}'s income</div><div class="value v-inc">${money(day.inc)}</div></div>
+      <div class="card kpi"><div class="label">${esc(dayLabel)}'s expenses</div><div class="value v-exp">${money(day.exp)}</div></div>
+      <div class="card kpi"><div class="label">Remaining daily budget</div><div class="value ${di.limit > 0 && di.remaining < 0 ? 'v-neg' : ''}">${di.limit > 0 ? money(di.remaining) : '—'}</div><div class="foot">${di.limit > 0 ? pctLabel(di.pct) + ' of ' + money(di.effective) + ' used' : 'No daily limit set'}</div></div>
+      <div class="card kpi"><div class="label">Monthly income</div><div class="value v-inc">${money(monthToDate ? mt.inc : mtFull.inc)}</div><div class="foot">${esc(monthLabel)}${monthToDate ? esc(throughLabel) : ''}</div></div>
+      <div class="card kpi"><div class="label">Monthly expenses</div><div class="value v-exp">${money(monthToDate ? mt.exp : mtFull.exp)}</div><div class="foot">${esc(monthLabel)}${monthToDate ? esc(throughLabel) : ''}</div></div>
+      <div class="card kpi"><div class="label">Monthly savings</div><div class="value ${(monthToDate ? mt.net : mtFull.net) < 0 ? 'v-neg' : ''}">${money(monthToDate ? mt.net : mtFull.net)}</div><div class="foot">Income − expenses (net cash flow)</div></div>
+    </div>
+    <div class="grid-2">${dailyCard}${utilCard}</div>
+    <div class="grid-3">
+      <div class="card"><div class="card-head"><div><h3>Income vs expenses</h3><div class="sub">Last 6 months</div></div></div><div class="chart-box"><canvas id="cIncExp" aria-label="Income versus expenses chart" role="img"></canvas></div></div>
+      <div class="card"><div class="card-head"><div><h3>Daily spending trend</h3><div class="sub">${esc(monthLabel)}</div></div></div><div class="chart-box"><canvas id="cDaily" aria-label="Daily spending chart" role="img"></canvas></div></div>
+      <div class="card span-3-sm"><div class="card-head"><div><h3>Spending by category</h3><div class="sub">${esc(monthLabel)}</div></div></div>${catMap.size ? '<div class="chart-box"><canvas id="cCat" aria-label="Spending by category chart" role="img"></canvas></div>' : emptyState('No expenses this month yet.')}</div>
+    </div>
+    <div class="grid-2">
+      <div class="card"><div class="card-head"><div><h3>Upcoming bills</h3><div class="sub">Overdue and due in the next 30 days</div></div><button class="btn sm ghost" data-action="nav" data-view="bills">All bills</button></div>
+        ${upcoming.length ? `<div class="list">${upcoming.map(b => {
+          const st = billState(b);
+          return `<div class="row compact"><div><div class="title">${esc(b.name)}</div><div class="meta"><span class="badge ${st === 'overdue' ? 'danger' : ''}">${esc(relDays(b.due_date))}</span><span>${esc(fmtDate(b.due_date))}</span></div></div><div style="text-align:right"><div class="amt">${money(toCents(b.amount), b.currency)}</div><button class="btn sm" style="margin-top:4px" data-action="pay-bill" data-id="${esc(b.id)}">Pay</button></div></div>`;
+        }).join('')}</div>` : emptyState('No bills due in the next 30 days.', 'add-bill', 'Add a bill')}
+      </div>
+      <div class="card"><div class="card-head"><h3>Recent transactions</h3><button class="btn sm ghost" data-action="nav" data-view="transactions">View all</button></div>
+        ${recent.length ? `<div class="list">${recent.map(txRow).join('')}</div>` : emptyState('No transactions yet. Add your first income or expense.', 'add-txn', 'Add transaction')}
+      </div>
+    </div>`;
+
+  // Charts
+  const c = themeColors();
+  const months = [], incs = [], exps = [];
+  for (let i = 5; i >= 0; i--) {
+    const ms = addMonths(m, -i);
+    const t = rangeTotals(ms, monthEnd(ms));
+    months.push(fmtMonthShort(ms)); incs.push(t.inc / 100); exps.push(t.exp / 100);
+  }
+  drawChart('cIncExp', { type: 'bar', data: { labels: months, datasets: [
+    { label: 'Income', data: incs, backgroundColor: c.inc, borderRadius: 5, maxBarThickness: 26 },
+    { label: 'Expenses', data: exps, backgroundColor: c.exp, borderRadius: 5, maxBarThickness: 26 }] }, options: baseOpts() });
+
+  const days = [], dexp = [];
+  const end = monthEnd(m);
+  for (let x = m; x <= end; x = addDays(x, 1)) { days.push(String(parseYmd(x).getDate())); dexp.push(dayTotals(x).exp / 100); }
+  const ds = [{ label: 'Spent', data: dexp, borderColor: c.exp, backgroundColor: c.exp + '22', fill: true, tension: .3, pointRadius: 0, pointHoverRadius: 4, borderWidth: 2 }];
+  if (di.limit > 0) ds.push({ label: 'Daily limit', data: days.map(() => di.limit / 100), borderColor: c.faint, borderDash: [5, 5], pointRadius: 0, borderWidth: 1.5, fill: false });
+  drawChart('cDaily', { type: 'line', data: { labels: days, datasets: ds }, options: baseOpts() });
+
+  if (catMap.size) doughnutChart('cCat', topCategories(catMap));
+
+  $('#dashDate').addEventListener('change', e => {
+    if (isValidDate(e.target.value)) { S.dashDate = e.target.value; renderView(); }
+  });
+}
+
+function txRow(t) {
+  const sign = t.type === 'income' ? '+' : '−';
+  const cls = t.type === 'income' ? 'v-inc' : 'v-exp';
+  return `<div class="row">
+    <div class="date">${esc(fmtDate(t.txn_date))}</div>
+    <div style="min-width:0"><div class="title">${esc(t.description || t.category)}</div>
+      <div class="meta"><span>${esc(t.category)}</span><span>·</span><span>${esc(PAYMENT_METHODS[t.payment_method] || 'Other')}</span>${t.type === 'expense' ? `<span class="badge ${t.is_essential ? '' : 'half'}">${t.is_essential ? 'Essential' : 'Non-essential'}</span>` : ''}${t.notes ? `<span title="Has notes">${ICONS.note}</span>` : ''}${t.currency !== S.idx.cur ? `<span class="badge">${esc(t.currency)}</span>` : ''}</div></div>
+    <div class="amt ${cls}">${sign}${money(t._c, t.currency)}</div>
+    <div class="acts"><button class="icon-btn" data-action="edit-txn" data-id="${esc(t.id)}" aria-label="Edit transaction">${ICONS.edit}</button><button class="icon-btn" data-action="del-txn" data-id="${esc(t.id)}" aria-label="Delete transaction">${ICONS.trash}</button></div>
+  </div>`;
+}
+
+/* =====================================================================
+   VIEW: Transactions
+   ===================================================================== */
+function txRange() {
+  const f = S.tf;
+  const a = isValidDate(f.anchor) ? f.anchor : todayStr();
+  switch (f.period) {
+    case 'day': return [a, a];
+    case 'week': { const s = weekStartOf(a); return [s, addDays(s, 6)]; }
+    case 'month': return [monthStart(a), monthEnd(a)];
+    case 'custom': return [isValidDate(f.from) ? f.from : '1900-01-01', isValidDate(f.to) ? f.to : '2100-12-31'];
+    default: return ['1900-01-01', '2100-12-31'];
+  }
+}
+function filteredTxns() {
+  const f = S.tf;
+  let [from, to] = txRange();
+  if (from > to) [from, to] = [to, from];
+  const q = f.q.trim().toLowerCase();
+  let list = S.txns.filter(t => t.txn_date >= from && t.txn_date <= to &&
+    (f.type === 'all' || t.type === f.type) &&
+    (f.category === 'all' || t.category === f.category) &&
+    (f.method === 'all' || t.payment_method === f.method) &&
+    (f.essential === 'all' || (t.type === 'expense' && (f.essential === 'yes') === t.is_essential)));
+  if (q) list = list.filter(t => [t.description, t.notes, t.category, PAYMENT_METHODS[t.payment_method], (t._c / 100).toFixed(2)].some(v => v && String(v).toLowerCase().includes(q)));
+  const cmp = {
+    date_desc: (a, b) => (a.txn_date < b.txn_date ? 1 : a.txn_date > b.txn_date ? -1 : (a.created_at < b.created_at ? 1 : -1)),
+    date_asc: (a, b) => (a.txn_date > b.txn_date ? 1 : a.txn_date < b.txn_date ? -1 : (a.created_at > b.created_at ? 1 : -1)),
+    amount_desc: (a, b) => b._c - a._c,
+    amount_asc: (a, b) => a._c - b._c,
+    category: (a, b) => a.category.localeCompare(b.category) || (a.txn_date < b.txn_date ? 1 : -1)
+  }[f.sort] || (() => 0);
+  return { list: list.sort(cmp), from, to };
+}
+function renderTransactions() {
+  const f = S.tf;
+  const cats = knownCategories('any');
+  const opt = (v, l, sel) => `<option value="${esc(v)}" ${v === sel ? 'selected' : ''}>${esc(l)}</option>`;
+  $('#view').innerHTML = `
+    <div class="card">
+      <div class="toolbar">
+        <label class="field grow" style="min-width:200px"><span>Search</span><input class="input" type="search" id="tfQ" placeholder="Description, notes, category, amount…" value="${esc(f.q)}" maxlength="100"></label>
+        <label class="field"><span>Period</span><select class="input" data-tf="period">${opt('day', 'Day', f.period)}${opt('week', 'Week', f.period)}${opt('month', 'Month', f.period)}${opt('custom', 'Custom range', f.period)}${opt('all', 'All time', f.period)}</select></label>
+        <label class="field" ${['day', 'week', 'month'].includes(f.period) ? '' : 'hidden'}><span>Date in period</span><input class="input" type="date" data-tf="anchor" value="${esc(f.anchor)}"></label>
+        <label class="field" ${f.period === 'custom' ? '' : 'hidden'}><span>From</span><input class="input" type="date" data-tf="from" value="${esc(f.from)}"></label>
+        <label class="field" ${f.period === 'custom' ? '' : 'hidden'}><span>To</span><input class="input" type="date" data-tf="to" value="${esc(f.to)}"></label>
+      </div>
+      <div class="toolbar" style="margin-top:10px">
+        <label class="field"><span>Type</span><select class="input" data-tf="type">${opt('all', 'All types', f.type)}${opt('income', 'Income', f.type)}${opt('expense', 'Expenses', f.type)}</select></label>
+        <label class="field"><span>Category</span><select class="input" data-tf="category">${opt('all', 'All categories', f.category)}${cats.map(c => opt(c, c, f.category)).join('')}</select></label>
+        <label class="field"><span>Payment method</span><select class="input" data-tf="method">${opt('all', 'All methods', f.method)}${Object.entries(PAYMENT_METHODS).map(([k, v]) => opt(k, v, f.method)).join('')}</select></label>
+        <label class="field"><span>Essential</span><select class="input" data-tf="essential">${opt('all', 'All', f.essential)}${opt('yes', 'Essential only', f.essential)}${opt('no', 'Non-essential only', f.essential)}</select></label>
+        <label class="field"><span>Sort by</span><select class="input" data-tf="sort">${opt('date_desc', 'Newest first', f.sort)}${opt('date_asc', 'Oldest first', f.sort)}${opt('amount_desc', 'Largest amount', f.sort)}${opt('amount_asc', 'Smallest amount', f.sort)}${opt('category', 'Category', f.sort)}</select></label>
+      </div>
+    </div>
+    <div class="card" id="txListCard"></div>`;
+  $('#tfQ').addEventListener('input', debounce(e => { S.tf.q = e.target.value.slice(0, 100); S.txLimit = PAGE_SIZE; renderTxList(); }, 200));
+  $$('[data-tf]').forEach(el => el.addEventListener('change', e => {
+    const k = e.target.dataset.tf;
+    S.tf[k] = e.target.value;
+    S.txLimit = PAGE_SIZE;
+    if (k === 'period') renderTransactions(); else renderTxList();
+  }));
+  renderTxList();
+}
+function renderTxList() {
+  const { list, from, to } = filteredTxns();
+  let inc = 0, exp = 0;
+  list.forEach(t => { if (t.currency === S.idx.cur) { if (t.type === 'income') inc += t._c; else exp += t._c; } });
+  const shown = list.slice(0, S.txLimit);
+  const periodText = S.tf.period === 'all' ? 'All time' : from === to ? fmtDate(from) : `${fmtDate(from)} – ${fmtDate(to)}`;
+  $('#txListCard').innerHTML = `
+    <div class="card-head" style="flex-wrap:wrap">
+      <div><h3>${list.length} transaction${list.length === 1 ? '' : 's'}</h3><div class="sub">${esc(periodText)}</div></div>
+      <div class="summary-strip"><span>Income <strong class="v-inc">${money(inc)}</strong></span><span>Expenses <strong class="v-exp">${money(exp)}</strong></span><span>Net <strong>${money(inc - exp)}</strong></span></div>
+    </div>
+    ${list.length ? `<div class="list-head"><span>Date</span><span>Description</span><span style="text-align:right">Amount</span><span style="width:76px"></span></div>
+      <div class="list">${shown.map(txRow).join('')}</div>
+      ${list.length > shown.length ? `<div style="text-align:center;margin-top:14px"><button class="btn" data-action="tx-more">Show more (${list.length - shown.length} remaining)</button></div>` : ''}`
+      : emptyState(S.txns.length ? 'No transactions match these filters.' : 'No transactions yet.', 'add-txn', 'Add transaction')}`;
+}
+
+/* ---------- Transaction form ---------- */
+function categoryOptionsHtml(type) { return knownCategories(type).map(c => `<option value="${esc(c)}"></option>`).join(''); }
+function openTxnForm(t) {
+  const isEdit = !!t;
+  const type = t ? t.type : 'expense';
+  const cur = t ? t.currency : S.prefs.currency;
+  openModal({
+    title: isEdit ? 'Edit transaction' : 'Add transaction',
+    submitLabel: isEdit ? 'Save changes' : 'Add transaction',
+    body: `<div class="form-grid">
+      <div class="field full"><span class="field-label">Type</span>
+        <div class="seg" role="radiogroup">
+          <label><input type="radio" name="type" value="expense" ${type === 'expense' ? 'checked' : ''}>Expense</label>
+          <label><input type="radio" name="type" value="income" ${type === 'income' ? 'checked' : ''}>Income</label>
+        </div></div>
+      <label class="field"><span>Amount</span><input class="input num" name="amount" inputmode="decimal" required placeholder="0.00" value="${t ? esc((t._c / 100).toFixed(2)) : ''}" autocomplete="off"></label>
+      <label class="field"><span>Currency</span><select class="input" name="currency">${[...new Set([cur, ...CURRENCIES])].map(c => `<option ${c === cur ? 'selected' : ''}>${esc(c)}</option>`).join('')}</select></label>
+      <label class="field"><span>Date</span><input class="input" type="date" name="txn_date" required value="${esc(t ? t.txn_date : (S.view === 'dashboard' ? S.dashDate : todayStr()))}" min="1900-01-01" max="2100-12-31"></label>
+      <label class="field"><span>Category</span><input class="input" name="category" list="catList" required maxlength="60" value="${esc(t ? t.category : '')}" placeholder="Choose or type"><datalist id="catList">${categoryOptionsHtml(type)}</datalist></label>
+      <label class="field full"><span>Description</span><input class="input" name="description" maxlength="200" value="${esc(t ? t.description : '')}" placeholder="e.g. Weekly groceries"></label>
+      <label class="field"><span>Payment method</span><select class="input" name="payment_method">${Object.entries(PAYMENT_METHODS).map(([k, v]) => `<option value="${k}" ${(t ? t.payment_method : 'debit_card') === k ? 'selected' : ''}>${esc(v)}</option>`).join('')}</select></label>
+      <div class="field" id="essWrap"><span class="field-label">Priority</span><label class="check" style="min-height:40px"><input type="checkbox" name="is_essential" ${t && t.is_essential ? 'checked' : ''}> Essential expense</label></div>
+      <label class="field full"><span>Notes (optional)</span><textarea class="input" name="notes" maxlength="1000">${esc(t && t.notes ? t.notes : '')}</textarea><span class="hint">Do not store card numbers, account numbers or passwords here.</span></label>
+    </div>`,
+    onOpen: root => {
+      const sync = () => {
+        const ty = $('input[name=type]:checked', root).value;
+        $('#catList', root).innerHTML = categoryOptionsHtml(ty);
+        $('#essWrap', root).style.visibility = ty === 'expense' ? 'visible' : 'hidden';
+      };
+      $$('input[name=type]', root).forEach(r => r.addEventListener('change', () => { $('input[name=category]', root).value = ''; sync(); }));
+      sync();
+    },
+    onSubmit: async fd => {
+      const typeV = fd.get('type');
+      if (!['income', 'expense'].includes(typeV)) fail('Choose income or expense.');
+      const cents = parseAmount(fd.get('amount'));
+      if (cents === null) fail('Enter a positive amount with up to 2 decimal places (e.g. 12.50).');
+      const date = String(fd.get('txn_date') || '');
+      if (!isValidDate(date)) fail('Enter a valid date between 1900 and 2100.');
+      const category = clean(fd.get('category'), 60);
+      if (!category) fail('Choose or type a category.');
+      const currency = String(fd.get('currency') || '');
+      if (!/^[A-Z]{3}$/.test(currency)) fail('Choose a valid currency.');
+      const method = String(fd.get('payment_method'));
+      if (!PAYMENT_METHODS[method]) fail('Choose a payment method.');
+      const row = {
+        type: typeV, amount: centsToDb(cents), currency, txn_date: date, category,
+        description: clean(fd.get('description'), 200), payment_method: method,
+        is_essential: typeV === 'expense' && fd.get('is_essential') === 'on',
+        notes: clean(fd.get('notes'), 1000) || null
+      };
+      if (isEdit) {
+        const { data, error } = await store.from('transactions').update(row).eq('id', t.id).eq('user_id', S.user.id).select().single();
+        if (error) throw error;
+        S.txns = S.txns.map(x => (x.id === t.id ? data : x));
+        toast('Transaction updated.', 'success');
+      } else {
+        const { data, error } = await store.from('transactions').insert({ ...row, user_id: S.user.id }).select().single();
+        if (error) throw error;
+        S.txns.unshift(data);
+        toast(`${typeV === 'income' ? 'Income' : 'Expense'} added.`, 'success');
+      }
+      reindex();
+      renderView();
+    }
+  });
+}
+async function deleteTxn(id) {
+  const t = S.txns.find(x => x.id === id);
+  if (!t) return;
+  const linked = S.payments.some(p => p.transaction_id === id);
+  const ok = await confirmDialog('Delete transaction?', `This permanently deletes "${t.description || t.category}" (${money(t._c, t.currency)}).${linked ? ' It is linked to a bill payment; the payment record will stay, but it will no longer point to an expense.' : ''}`);
+  if (!ok) return;
+  const { error } = await store.from('transactions').delete().eq('id', id).eq('user_id', S.user.id);
+  if (error) return handleError(error, 'delete-txn');
+  S.txns = S.txns.filter(x => x.id !== id);
+  S.payments.forEach(p => { if (p.transaction_id === id) p.transaction_id = null; });
+  reindex();
+  renderView();
+  toast('Transaction deleted.');
+}
+
+/* =====================================================================
+   VIEW: Budgets
+   ===================================================================== */
+function renderBudgets() {
+  const m = S.budgetMonth;
+  const info = monthBudgetInfo(m);
+  const prev = addMonths(m, -1);
+  const prevRows = budgetsForMonth(prev);
+  const hasRows = budgetsForMonth(m).length > 0;
+
+  // 12-month history
+  const hist = [];
+  for (let i = 0; i < 12; i++) {
+    const hm = addMonths(m, -i);
+    const hi = monthBudgetInfo(hm);
+    if (hi.overall || hi.cats.length || hi.totalExp) hist.push({ m: hm, ...hi });
+  }
+
+  $('#view').innerHTML = `
+    <div class="toolbar">
+      <button class="icon-btn" data-action="budget-month" data-delta="-1" aria-label="Previous month"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M15 6l-6 6 6 6"/></svg></button>
+      <label class="field"><span>Month</span><input class="input" type="month" id="budgetMonth" value="${esc(m.slice(0, 7))}"></label>
+      <button class="icon-btn" data-action="budget-month" data-delta="1" aria-label="Next month"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M9 6l6 6-6 6"/></svg></button>
+      <div class="grow"></div>
+      ${!hasRows && prevRows.length ? `<button class="btn" data-action="copy-budgets">Copy ${esc(fmtMonthShort(prev))} budgets</button>` : ''}
+      <button class="btn primary" data-action="add-budget">Add budget</button>
+    </div>
+    ${currencyNote()}
+    <div class="card">
+      <div class="card-head"><div><h3>Monthly budget</h3><div class="sub">${esc(fmtMonth(m))} · total spending limit across all categories</div></div>
+        ${info.overall ? `<div class="acts" style="display:flex;gap:4px"><button class="icon-btn" data-action="edit-budget" data-id="${esc(info.overall.id)}" aria-label="Edit monthly budget">${ICONS.edit}</button><button class="icon-btn" data-action="del-budget" data-id="${esc(info.overall.id)}" aria-label="Delete monthly budget">${ICONS.trash}</button></div>` : ''}</div>
+      ${info.overall ? `
+        <div class="kpis" style="margin-bottom:14px">
+          <div><div class="muted small">Budget</div><div class="kpi" style="padding:0"><div class="value">${money(info.overallBudget)}</div></div></div>
+          <div><div class="muted small">Spent</div><div class="kpi" style="padding:0"><div class="value v-exp">${money(info.totalExp)}</div></div></div>
+          <div><div class="muted small">${info.overallBudget - info.totalExp >= 0 ? 'Remaining' : 'Over by'}</div><div class="kpi" style="padding:0"><div class="value ${info.overallBudget - info.totalExp < 0 ? 'v-neg' : ''}">${money(Math.abs(info.overallBudget - info.totalExp))}</div></div></div>
+          <div><div class="muted small">Used</div><div class="kpi" style="padding:0"><div class="value">${pctLabel(info.overallPct)}</div></div></div>
+        </div>
+        ${meter(info.overallPct, 'lg')}
+        <div style="margin-top:10px;display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap">${badge(info.overallPct)}${info.catBudgetSum > info.overallBudget ? `<span class="hint">Your category limits (${money(info.catBudgetSum)}) add up to more than this monthly budget.</span>` : ''}</div>`
+        : emptyState(`No overall budget for ${fmtMonth(m)}.`, 'add-overall-budget', 'Set monthly budget')}
+    </div>
+    <div class="card">
+      <div class="card-head"><div><h3>Category budgets</h3><div class="sub">Expenses only · ${esc(fmtMonth(m))}</div></div><button class="btn sm" data-action="add-budget">Add category limit</button></div>
+      ${info.cats.length ? `<div class="table-wrap"><table class="data">
+        <thead><tr><th>Category</th><th class="r">Budget</th><th class="r">Actual</th><th class="r">Remaining</th><th style="min-width:120px">Used</th><th>Status</th><th></th></tr></thead>
+        <tbody>${info.cats.map(c => `<tr>
+          <td><strong>${esc(c.category)}</strong>${c.row.notes ? `<div class="hint">${esc(c.row.notes)}</div>` : ''}</td>
+          <td class="r">${money(c.budget)}</td><td class="r">${money(c.actual)}</td>
+          <td class="r ${c.remaining < 0 ? 'v-neg' : ''}">${money(c.remaining)}</td>
+          <td><div style="display:flex;align-items:center;gap:8px">${meter(c.pct)}<span class="small num">${pctLabel(c.pct)}</span></div></td>
+          <td>${badge(c.pct)}</td>
+          <td style="white-space:nowrap"><button class="icon-btn" data-action="edit-budget" data-id="${esc(c.row.id)}" aria-label="Edit">${ICONS.edit}</button><button class="icon-btn" data-action="del-budget" data-id="${esc(c.row.id)}" aria-label="Delete">${ICONS.trash}</button></td>
+        </tr>`).join('')}
+        ${info.unbudgeted ? `<tr><td class="muted">Spending in categories without a limit</td><td class="r muted">—</td><td class="r">${money(info.unbudgeted)}</td><td colspan="4"></td></tr>` : ''}
+        </tbody></table></div>` : emptyState('No category limits for this month.')}
+    </div>
+    <div class="card">
+      <div class="card-head"><div><h3>Budget history</h3><div class="sub">12 months up to ${esc(fmtMonth(m))}</div></div></div>
+      ${hist.length ? `<div class="table-wrap"><table class="data">
+        <thead><tr><th>Month</th><th class="r">Monthly budget</th><th class="r">Category limits</th><th class="r">Actual spending</th><th class="r">Difference</th><th>Status</th></tr></thead>
+        <tbody>${hist.map(h => {
+          const diff = h.overallBudget - h.totalExp;
+          return `<tr><td><button class="link-btn" data-action="budget-goto" data-month="${esc(h.m)}">${esc(fmtMonth(h.m))}</button></td>
+            <td class="r">${h.overall ? money(h.overallBudget) : '—'}</td><td class="r">${h.cats.length ? money(h.catBudgetSum) : '—'}</td>
+            <td class="r">${money(h.totalExp)}</td><td class="r ${h.overall && diff < 0 ? 'v-neg' : ''}">${h.overall ? money(diff) : '—'}</td>
+            <td>${h.overall ? badge(h.overallPct) : '<span class="badge">No budget</span>'}</td></tr>`;
+        }).join('')}</tbody></table></div>` : emptyState('No budget history yet.')}
+    </div>`;
+  $('#budgetMonth').addEventListener('change', e => {
+    if (/^\d{4}-\d{2}$/.test(e.target.value) && isValidDate(e.target.value + '-01')) { S.budgetMonth = e.target.value + '-01'; renderView(); }
+  });
+}
+function openBudgetForm(b, { overall = false } = {}) {
+  const isEdit = !!b;
+  const isOverall = isEdit ? b.category === null : overall;
+  const m = isEdit ? b.month : S.budgetMonth;
+  const existing = new Set(budgetsForMonth(m).filter(x => x.category).map(x => x.category));
+  openModal({
+    title: isEdit ? 'Edit budget' : (isOverall ? 'Set monthly budget' : 'Add budget'),
+    body: `<div class="form-grid">
+      <label class="field"><span>Month</span><input class="input" type="month" name="month" required value="${esc(m.slice(0, 7))}"></label>
+      <label class="field"><span>Applies to</span><select class="input" name="scope" ${isEdit ? 'disabled' : ''}>
+        <option value="__overall__" ${isOverall ? 'selected' : ''}>Whole month (all expenses)</option>
+        ${knownCategories('expense').map(c => `<option value="${esc(c)}" ${b && b.category === c ? 'selected' : ''}>${esc(c)}${!isEdit && existing.has(c) ? ' (already set)' : ''}</option>`).join('')}
+      </select></label>
+      <label class="field full"><span>Budget amount (${esc(S.prefs.currency)})</span><input class="input num" name="amount" inputmode="decimal" required placeholder="0.00" value="${b ? esc(toCents(b.amount) / 100) : ''}"></label>
+      <label class="field full"><span>Notes (optional)</span><input class="input" name="notes" maxlength="500" value="${esc(b && b.notes ? b.notes : '')}"></label>
+    </div>`,
+    onSubmit: async fd => {
+      const mv = String(fd.get('month') || '');
+      if (!/^\d{4}-\d{2}$/.test(mv) || !isValidDate(mv + '-01')) fail('Choose a valid month.');
+      const cents = parseAmount(fd.get('amount'), { allowZero: true });
+      if (cents === null) fail('Enter a valid amount (0 or more, up to 2 decimals).');
+      const scope = isEdit ? (b.category === null ? '__overall__' : b.category) : String(fd.get('scope'));
+      const row = { month: mv + '-01', category: scope === '__overall__' ? null : clean(scope, 60), amount: centsToDb(cents), notes: clean(fd.get('notes'), 500) || null };
+      let error;
+      if (isEdit) ({ error } = await store.from('budgets').update({ month: row.month, amount: row.amount, notes: row.notes }).eq('id', b.id).eq('user_id', S.user.id));
+      else ({ error } = await store.from('budgets').insert({ ...row, user_id: S.user.id }));
+      if (error) { if (error.code === '23505') fail('A budget for that month and category already exists — edit it instead.'); throw error; }
+      await loadBudgets();
+      S.budgetMonth = row.month;
+      renderView();
+      toast('Budget saved.', 'success');
+    }
+  });
+}
+async function deleteBudget(id) {
+  const b = S.budgets.find(x => x.id === id);
+  if (!b) return;
+  if (!await confirmDialog('Delete budget?', `Delete the ${b.category ? `"${b.category}"` : 'overall monthly'} budget for ${fmtMonth(b.month)}? Your transactions are not affected.`)) return;
+  const { error } = await store.from('budgets').delete().eq('id', id).eq('user_id', S.user.id);
+  if (error) return handleError(error, 'delete-budget');
+  await loadBudgets().catch(e => handleError(e, 'load'));
+  renderView();
+  toast('Budget deleted.');
+}
+async function copyBudgets() {
+  const m = S.budgetMonth, prev = addMonths(m, -1);
+  const rows = budgetsForMonth(prev).map(b => ({ user_id: S.user.id, month: m, category: b.category, amount: b.amount, notes: b.notes }));
+  if (!rows.length) return;
+  const { error } = await store.from('budgets').insert(rows);
+  if (error) return handleError(error, 'copy-budgets');
+  await loadBudgets().catch(e => handleError(e, 'load'));
+  renderView();
+  toast(`Copied ${rows.length} budget${rows.length === 1 ? '' : 's'} from ${fmtMonth(prev)}.`, 'success');
+}
+
+/* =====================================================================
+   VIEW: Bills
+   ===================================================================== */
+function renderBills() {
+  const groups = {
+    upcoming: S.bills.filter(b => billState(b) === 'upcoming').sort((a, b) => a.due_date.localeCompare(b.due_date)),
+    overdue: S.bills.filter(b => billState(b) === 'overdue').sort((a, b) => a.due_date.localeCompare(b.due_date)),
+    paid: S.payments,
+    all: S.bills.slice().sort((a, b) => a.name.localeCompare(b.name))
+  };
+  const tab = S.billTab;
+  const tabBtn = (id, label) => `<button type="button" class="${tab === id ? 'on' : ''}" data-action="bill-tab" data-tab="${id}">${label} <span class="count">${groups[id].length}</span></button>`;
+  let body;
+  if (tab === 'paid') {
+    body = groups.paid.length ? `<div class="card"><div class="table-wrap"><table class="data">
+      <thead><tr><th>Bill</th><th>Cycle due</th><th>Paid on</th><th class="r">Amount</th><th>Expense record</th></tr></thead>
+      <tbody>${groups.paid.map(p => {
+        const b = S.bills.find(x => x.id === p.bill_id);
+        const t = p.transaction_id ? S.txns.find(x => x.id === p.transaction_id) : null;
+        return `<tr><td><strong>${esc(b ? b.name : 'Deleted bill')}</strong></td><td>${esc(fmtDate(p.due_date))}</td><td>${esc(fmtDate(p.paid_on))}</td>
+          <td class="r">${money(toCents(p.amount), b ? b.currency : S.prefs.currency)}</td>
+          <td>${t ? `<span class="badge ok">Linked expense</span> <button class="link-btn small" data-action="edit-txn" data-id="${esc(t.id)}">View</button>` : '<span class="badge">Not recorded as expense</span>'}</td></tr>`;
+      }).join('')}</tbody></table></div></div>` : emptyState('No bill payments recorded yet.');
+  } else {
+    const list = groups[tab];
+    body = list.length ? `<div class="bill-grid">${list.map(billCard).join('')}</div>`
+      : emptyState(tab === 'overdue' ? 'Nothing overdue. Nice work.' : tab === 'upcoming' ? 'No upcoming bills.' : 'No bills yet.', 'add-bill', 'Add a bill');
+  }
+  $('#view').innerHTML = `
+    <div class="toolbar"><div class="tabs">${tabBtn('upcoming', 'Upcoming')}${tabBtn('overdue', 'Overdue')}${tabBtn('paid', 'Paid')}${tabBtn('all', 'All bills')}</div><div class="grow"></div><button class="btn primary" data-action="add-bill">Add bill</button></div>
+    <div class="notice">${ICONS.info}<span>A bill is a reminder, not an expense. When you press <strong>Pay</strong>, DailyBudget records one payment for the bill's current due date and — if you choose — one linked expense transaction. Recurring bills then move to their next due date. Each due date can be paid only once, so expenses are never duplicated.</span></div>
+    ${body}`;
+}
+function billCard(b) {
+  const st = billState(b);
+  const stBadge = { upcoming: '<span class="badge">Upcoming</span>', overdue: '<span class="badge danger">Overdue</span>', paid: '<span class="badge ok">Paid</span>', cancelled: '<span class="badge">Cancelled</span>' }[st];
+  return `<div class="card bill ${st === 'overdue' ? 'overdue' : ''}">
+    <div class="top"><div style="min-width:0"><h3>${esc(b.name)}</h3><div class="meta muted small">${esc(BILL_TYPES[b.bill_type] || 'Bill')} · ${esc(RECURRENCE[b.recurrence])}</div></div>${stBadge}</div>
+    <div class="amt">${money(toCents(b.amount), b.currency)}</div>
+    <div class="kv"><span>${b.status === 'pending' ? 'Next due' : 'Due date'}</span><strong>${esc(fmtDate(b.due_date))}</strong></div>
+    ${b.status === 'pending' ? `<div class="kv"><span></span><span class="${st === 'overdue' ? 'v-neg' : ''}">${esc(relDays(b.due_date))}</span></div>` : ''}
+    <div class="kv"><span>Expense category</span><strong>${esc(b.category)}</strong></div>
+    ${b.notes ? `<p class="hint" style="overflow-wrap:anywhere">${esc(b.notes)}</p>` : ''}
+    <div class="acts">${b.status === 'pending' ? `<button class="btn primary sm" data-action="pay-bill" data-id="${esc(b.id)}">Pay</button>` : ''}
+      <button class="btn sm" data-action="edit-bill" data-id="${esc(b.id)}">Edit</button>
+      <button class="btn sm danger" data-action="del-bill" data-id="${esc(b.id)}">Delete</button></div>
+  </div>`;
+}
+function openBillForm(b) {
+  const isEdit = !!b;
+  const cur = b ? b.currency : S.prefs.currency;
+  openModal({
+    title: isEdit ? 'Edit bill' : 'Add bill',
+    body: `<div class="form-grid">
+      <label class="field full"><span>Name</span><input class="input" name="name" required maxlength="80" value="${esc(b ? b.name : '')}" placeholder="e.g. Electricity"></label>
+      <label class="field"><span>Bill type</span><select class="input" name="bill_type">${Object.entries(BILL_TYPES).map(([k, v]) => `<option value="${k}" ${(b ? b.bill_type : 'utilities') === k ? 'selected' : ''}>${esc(v)}</option>`).join('')}</select></label>
+      <label class="field"><span>Expense category</span><input class="input" name="category" list="billCats" required maxlength="60" value="${esc(b ? b.category : BILL_TYPE_CATEGORY.utilities)}"><datalist id="billCats">${categoryOptionsHtml('expense')}</datalist></label>
+      <label class="field"><span>Amount</span><input class="input num" name="amount" inputmode="decimal" required placeholder="0.00" value="${b ? esc((toCents(b.amount) / 100).toFixed(2)) : ''}"></label>
+      <label class="field"><span>Currency</span><select class="input" name="currency">${[...new Set([cur, ...CURRENCIES])].map(c => `<option ${c === cur ? 'selected' : ''}>${esc(c)}</option>`).join('')}</select></label>
+      <label class="field"><span>${isEdit ? 'Next due date' : 'First due date'}</span><input class="input" type="date" name="due_date" required value="${esc(b ? b.due_date : todayStr())}" min="1900-01-01" max="2100-12-31"></label>
+      <label class="field"><span>Repeats</span><select class="input" name="recurrence">${Object.entries(RECURRENCE).map(([k, v]) => `<option value="${k}" ${(b ? b.recurrence : 'monthly') === k ? 'selected' : ''}>${esc(v)}</option>`).join('')}</select></label>
+      ${isEdit ? `<label class="field full"><span>Status</span><select class="input" name="status">${['pending', 'paid', 'cancelled'].map(s => `<option value="${s}" ${b.status === s ? 'selected' : ''}>${s === 'pending' ? 'Active (awaiting payment)' : s === 'paid' ? 'Paid (one-time bill)' : 'Cancelled'}</option>`).join('')}</select><span class="hint">Changing the status does not create or delete any expense.</span></label>` : ''}
+      <label class="field full"><span>Notes (optional)</span><textarea class="input" name="notes" maxlength="1000" placeholder="Never store account numbers or passwords here.">${esc(b && b.notes ? b.notes : '')}</textarea></label>
+    </div>`,
+    onOpen: root => {
+      const typeSel = $('select[name=bill_type]', root), catIn = $('input[name=category]', root);
+      typeSel.addEventListener('change', () => { if (!isEdit || !catIn.value) catIn.value = BILL_TYPE_CATEGORY[typeSel.value]; });
+    },
+    onSubmit: async fd => {
+      const name = clean(fd.get('name'), 80);
+      if (!name) fail('Enter a bill name.');
+      const cents = parseAmount(fd.get('amount'));
+      if (cents === null) fail('Enter a positive amount with up to 2 decimals.');
+      const due = String(fd.get('due_date') || '');
+      if (!isValidDate(due)) fail('Enter a valid due date.');
+      const recurrence = String(fd.get('recurrence'));
+      if (!RECURRENCE[recurrence]) fail('Choose how often the bill repeats.');
+      const billType = String(fd.get('bill_type'));
+      if (!BILL_TYPES[billType]) fail('Choose a bill type.');
+      const category = clean(fd.get('category'), 60);
+      if (!category) fail('Enter an expense category.');
+      const currency = String(fd.get('currency'));
+      if (!/^[A-Z]{3}$/.test(currency)) fail('Choose a currency.');
+      const row = { name, bill_type: billType, category, amount: centsToDb(cents), currency, recurrence, notes: clean(fd.get('notes'), 1000) || null };
+      let error;
+      if (isEdit) {
+        const status = String(fd.get('status'));
+        if (!['pending', 'paid', 'cancelled'].includes(status)) fail('Choose a status.');
+        row.status = status;
+        if (due !== b.due_date || recurrence !== b.recurrence) { row.due_date = due; row.start_date = due; row.period_index = 0; }
+        ({ error } = await store.from('bills').update(row).eq('id', b.id).eq('user_id', S.user.id));
+      } else {
+        ({ error } = await store.from('bills').insert({ ...row, due_date: due, start_date: due, period_index: 0, status: 'pending', user_id: S.user.id }));
+      }
+      if (error) throw error;
+      await loadBills();
+      renderView();
+      toast('Bill saved.', 'success');
+    }
+  });
+}
+function openPayForm(b) {
+  openModal({
+    title: `Pay: ${b.name}`, submitLabel: 'Record payment',
+    body: `<div class="form-grid">
+      <div class="full notice">${ICONS.info}<span>This pays the cycle due <strong>${esc(fmtDate(b.due_date))}</strong>.${b.recurrence !== 'none' ? ` Afterwards the bill moves to its next ${esc(RECURRENCE[b.recurrence].toLowerCase())} due date.` : ' The bill will be marked paid.'}</span></div>
+      <label class="field"><span>Amount paid</span><input class="input num" name="amount" inputmode="decimal" required value="${esc((toCents(b.amount) / 100).toFixed(2))}"></label>
+      <label class="field"><span>Paid on</span><input class="input" type="date" name="paid_on" required value="${esc(todayStr())}" min="1900-01-01" max="2100-12-31"></label>
+      <label class="field full"><span>Payment method</span><select class="input" name="payment_method">${Object.entries(PAYMENT_METHODS).map(([k, v]) => `<option value="${k}" ${k === 'bank_transfer' ? 'selected' : ''}>${esc(v)}</option>`).join('')}</select></label>
+      <label class="check full"><input type="checkbox" name="create_txn" checked> Also record this payment as an expense transaction</label>
+      <p class="hint full">Untick this if you already entered the expense yourself in Transactions — that way it isn't counted twice.</p>
+    </div>`,
+    onSubmit: async fd => {
+      const cents = parseAmount(fd.get('amount'));
+      if (cents === null) fail('Enter a positive amount.');
+      const paidOn = String(fd.get('paid_on') || '');
+      if (!isValidDate(paidOn)) fail('Enter a valid payment date.');
+      const method = String(fd.get('payment_method'));
+      if (!PAYMENT_METHODS[method]) fail('Choose a payment method.');
+      const { error } = await store.rpc('record_bill_payment', {
+        p_bill_id: b.id, p_paid_on: paidOn, p_amount: centsToDb(cents), p_payment_method: method, p_create_transaction: fd.get('create_txn') === 'on'
+      });
+      if (error) { if (error.code === '23505') fail('This due date has already been paid.'); throw error; }
+      await Promise.all([loadBills(), loadPayments(), loadTxns()]);
+      renderView();
+      toast('Payment recorded.', 'success');
+    }
+  });
+}
+async function deleteBill(id) {
+  const b = S.bills.find(x => x.id === id);
+  if (!b) return;
+  if (!await confirmDialog('Delete bill?', `Delete "${b.name}" and its payment history? Any expense transactions already recorded for it are kept.`)) return;
+  const { error } = await store.from('bills').delete().eq('id', id).eq('user_id', S.user.id);
+  if (error) return handleError(error, 'delete-bill');
+  await Promise.all([loadBills(), loadPayments()]).catch(e => handleError(e, 'load'));
+  renderView();
+  toast('Bill deleted.');
+}
+
+/* =====================================================================
+   VIEW: Savings goals
+   ===================================================================== */
+function renderGoals() {
+  const total = earmarkedCents();
+  const target = S.goals.reduce((s, g) => s + toCents(g.target_amount), 0);
+  const bal = balanceAsOf(todayStr());
+  $('#view').innerHTML = `
+    <div class="toolbar"><div class="summary-strip"><span>Set aside <strong>${money(total)}</strong></span><span>Targets <strong>${money(target)}</strong></span><span>Tracked balance <strong>${money(bal)}</strong></span></div><div class="grow"></div><button class="btn primary" data-action="add-goal">Add goal</button></div>
+    <div class="notice">${ICONS.info}<span>Savings goals are <strong>earmarks</strong>: they record how much of your tracked money you've mentally set aside for a purpose. They are not separate money, they don't change your balance, and they are not verified by any bank. "Available to spend" on the dashboard is your balance minus these earmarks.</span></div>
+    ${total > bal ? `<div class="notice warn">${ICONS.alert}<span>You've set aside more (${money(total)}) than your tracked balance (${money(bal)}).</span></div>` : ''}
+    ${S.goals.length ? `<div class="goal-grid">${S.goals.map(goalCard).join('')}</div>` : emptyState('No savings goals yet. Start with an emergency fund?', 'add-goal', 'Add goal')}`;
+}
+function goalCard(g) {
+  const saved = toCents(g.saved_amount), tgt = toCents(g.target_amount);
+  const pct = tgt > 0 ? saved / tgt * 100 : 0;
+  const left = Math.max(0, tgt - saved);
+  let pace = '';
+  if (g.target_date && left > 0) {
+    const months = Math.max(1, Math.ceil(daysBetween(todayStr(), g.target_date) / 30.44));
+    pace = g.target_date < todayStr() ? '<span class="v-neg">Target date has passed</span>' : `About ${money(Math.ceil(left / months))} per month to reach it`;
+  }
+  return `<div class="card goal">
+    <div class="top" style="display:flex;justify-content:space-between;gap:8px"><div style="min-width:0"><h3 style="font-size:16px;overflow-wrap:anywhere">${esc(g.name)}</h3><div class="muted small">${esc(GOAL_TYPES[g.goal_type] || 'Goal')}</div></div>${pct >= 100 ? '<span class="badge ok">Reached</span>' : `<span class="badge">${Math.floor(pct)}%</span>`}</div>
+    <div class="figures"><strong>${money(saved)}</strong><span class="muted small">of ${money(tgt)}</span></div>
+    <div class="meter lg" role="progressbar" aria-valuenow="${Math.round(Math.min(pct, 100))}" aria-valuemin="0" aria-valuemax="100"><span style="width:${Math.min(100, pct).toFixed(1)}%;background:var(--accent)"></span></div>
+    <div class="kv"><span>Still needed</span><strong>${money(left)}</strong></div>
+    ${g.target_date ? `<div class="kv"><span>Target date</span><strong>${esc(fmtDate(g.target_date))}</strong></div>` : ''}
+    ${pace ? `<p class="hint">${pace}</p>` : ''}
+    ${g.description ? `<p class="desc">${esc(g.description)}</p>` : ''}
+    <div class="acts"><button class="btn primary sm" data-action="adjust-goal" data-id="${esc(g.id)}">Add / withdraw</button><button class="btn sm" data-action="edit-goal" data-id="${esc(g.id)}">Edit</button><button class="btn sm danger" data-action="del-goal" data-id="${esc(g.id)}">Delete</button></div>
+  </div>`;
+}
+function openGoalForm(g) {
+  const isEdit = !!g;
+  openModal({
+    title: isEdit ? 'Edit savings goal' : 'Add savings goal',
+    body: `<div class="form-grid">
+      <label class="field full"><span>Goal name</span><input class="input" name="name" required maxlength="80" value="${esc(g ? g.name : '')}" placeholder="e.g. Emergency fund"></label>
+      <label class="field"><span>Goal type</span><select class="input" name="goal_type">${Object.entries(GOAL_TYPES).map(([k, v]) => `<option value="${k}" ${(g ? g.goal_type : 'emergency') === k ? 'selected' : ''}>${esc(v)}</option>`).join('')}</select></label>
+      <label class="field"><span>Target date (optional)</span><input class="input" type="date" name="target_date" value="${esc(g && g.target_date ? g.target_date : '')}" min="1900-01-01" max="2100-12-31"></label>
+      <label class="field"><span>Target amount (${esc(S.prefs.currency)})</span><input class="input num" name="target_amount" inputmode="decimal" required value="${g ? esc((toCents(g.target_amount) / 100).toFixed(2)) : ''}" placeholder="0.00"></label>
+      <label class="field"><span>Amount set aside so far</span><input class="input num" name="saved_amount" inputmode="decimal" required value="${g ? esc((toCents(g.saved_amount) / 100).toFixed(2)) : '0.00'}"></label>
+      <label class="field full"><span>Description (optional)</span><textarea class="input" name="description" maxlength="500">${esc(g && g.description ? g.description : '')}</textarea></label>
+    </div>`,
+    onSubmit: async fd => {
+      const name = clean(fd.get('name'), 80);
+      if (!name) fail('Enter a goal name.');
+      const tgt = parseAmount(fd.get('target_amount'));
+      if (tgt === null) fail('Enter a target amount greater than zero.');
+      const saved = parseAmount(fd.get('saved_amount'), { allowZero: true });
+      if (saved === null) fail('Enter the amount set aside (0 or more).');
+      const td = String(fd.get('target_date') || '');
+      if (td && !isValidDate(td)) fail('Enter a valid target date or leave it blank.');
+      const type = String(fd.get('goal_type'));
+      if (!GOAL_TYPES[type]) fail('Choose a goal type.');
+      const row = { name, goal_type: type, target_amount: centsToDb(tgt), saved_amount: centsToDb(saved), target_date: td || null, description: clean(fd.get('description'), 500) || null };
+      const { error } = isEdit
+        ? await store.from('savings_goals').update(row).eq('id', g.id).eq('user_id', S.user.id)
+        : await store.from('savings_goals').insert({ ...row, user_id: S.user.id });
+      if (error) throw error;
+      await loadGoals();
+      renderView();
+      toast('Goal saved.', 'success');
+    }
+  });
+}
+function openGoalAdjust(g) {
+  openModal({
+    title: `Update "${g.name}"`, submitLabel: 'Update',
+    body: `<div class="form-grid">
+      <div class="field full"><span class="field-label">Action</span><div class="seg"><label><input type="radio" name="dir" value="add" checked>Set aside more</label><label><input type="radio" name="dir" value="withdraw">Withdraw</label></div></div>
+      <label class="field full"><span>Amount</span><input class="input num" name="amount" inputmode="decimal" required placeholder="0.00"></label>
+      <p class="hint full">Currently set aside: ${money(toCents(g.saved_amount))}. This only changes the earmark — it does not add a transaction or move real money.</p>
+    </div>`,
+    onSubmit: async fd => {
+      const cents = parseAmount(fd.get('amount'));
+      if (cents === null) fail('Enter a positive amount.');
+      const cur = toCents(g.saved_amount);
+      const next = fd.get('dir') === 'withdraw' ? cur - cents : cur + cents;
+      if (next < 0) fail(`You can withdraw at most ${money(cur)}.`);
+      if (next > MAX_CENTS) fail('That amount is too large.');
+      const { error } = await store.from('savings_goals').update({ saved_amount: centsToDb(next) }).eq('id', g.id).eq('user_id', S.user.id);
+      if (error) throw error;
+      await loadGoals();
+      renderView();
+      toast('Goal updated.', 'success');
+    }
+  });
+}
+async function deleteGoal(id) {
+  const g = S.goals.find(x => x.id === id);
+  if (!g) return;
+  if (!await confirmDialog('Delete goal?', `Delete the goal "${g.name}"? This only removes the earmark; your transactions and balance are unchanged.`)) return;
+  const { error } = await store.from('savings_goals').delete().eq('id', id).eq('user_id', S.user.id);
+  if (error) return handleError(error, 'delete-goal');
+  await loadGoals().catch(e => handleError(e, 'load'));
+  renderView();
+  toast('Goal deleted.');
+}
+
+/* =====================================================================
+   VIEW: Reports
+   ===================================================================== */
+function presetRange(p) {
+  const t = todayStr();
+  switch (p) {
+    case 'this_month': return [monthStart(t), monthEnd(t)];
+    case 'last_month': return [addMonths(t, -1), monthEnd(addMonths(t, -1))];
+    case 'last3': return [addMonths(t, -2), monthEnd(t)];
+    case 'last6': return [addMonths(t, -5), monthEnd(t)];
+    case 'this_year': return [t.slice(0, 4) + '-01-01', t.slice(0, 4) + '-12-31'];
+    case 'last12': return [addMonths(t, -11), monthEnd(t)];
+    default: return null;
+  }
+}
+function renderReports() {
+  const r = S.report;
+  let { from, to } = r;
+  if (from > to) [from, to] = [to, from];
+  const opt = (v, l) => `<option value="${v}" ${r.preset === v ? 'selected' : ''}>${l}</option>`;
+  const txs = rangeTxns(from, to);
+  const tot = rangeTotals(from, to);
+  const nDays = daysBetween(from, to) + 1;
+  const ess = txs.filter(t => t.type === 'expense' && t.is_essential).reduce((s, t) => s + t._c, 0);
+  const catMap = new Map();
+  txs.forEach(t => { if (t.type === 'expense') catMap.set(t.category, (catMap.get(t.category) || 0) + t._c); });
+  const catRows = [...catMap.entries()].sort((a, b) => b[1] - a[1]);
+
+  $('#view').innerHTML = `
+    <div class="card"><div class="toolbar">
+      <label class="field"><span>Range</span><select class="input" id="rPreset">${opt('this_month', 'This month')}${opt('last_month', 'Last month')}${opt('last3', 'Last 3 months')}${opt('last6', 'Last 6 months')}${opt('this_year', 'This year')}${opt('last12', 'Last 12 months')}${opt('custom', 'Custom range')}</select></label>
+      <label class="field"><span>From</span><input class="input" type="date" id="rFrom" value="${esc(from)}" min="1900-01-01" max="2100-12-31"></label>
+      <label class="field"><span>To</span><input class="input" type="date" id="rTo" value="${esc(to)}" min="1900-01-01" max="2100-12-31"></label>
+      <div class="grow"></div>
+      <button class="btn" data-action="export-range">Export CSV</button>
+    </div></div>
+    ${currencyNote()}
+    <div class="kpis">
+      <div class="card kpi"><div class="label">Income</div><div class="value v-inc">${money(tot.inc)}</div></div>
+      <div class="card kpi"><div class="label">Expenses</div><div class="value v-exp">${money(tot.exp)}</div></div>
+      <div class="card kpi"><div class="label">Net savings</div><div class="value ${tot.net < 0 ? 'v-neg' : ''}">${money(tot.net)}</div><div class="foot">${tot.inc > 0 ? Math.round(tot.net / tot.inc * 100) + '% of income' : '—'}</div></div>
+      <div class="card kpi"><div class="label">Avg. daily spending</div><div class="value">${money(Math.round(tot.exp / nDays))}</div><div class="foot">${nDays} day${nDays === 1 ? '' : 's'}</div></div>
+      <div class="card kpi"><div class="label">Essential spending</div><div class="value">${tot.exp ? Math.round(ess / tot.exp * 100) : 0}%</div><div class="foot">${money(ess)} essential · ${money(tot.exp - ess)} other</div></div>
+    </div>
+    <div class="grid-2">
+      <div class="card"><div class="card-head"><h3>Income vs expenses</h3><span class="sub">By month</span></div><div class="chart-box"><canvas id="rIncExp" role="img" aria-label="Income versus expenses by month"></canvas></div></div>
+      <div class="card"><div class="card-head"><h3>Daily spending</h3></div><div class="chart-box"><canvas id="rDaily" role="img" aria-label="Daily spending"></canvas></div></div>
+      <div class="card"><div class="card-head"><h3>Weekly spending</h3></div><div class="chart-box"><canvas id="rWeekly" role="img" aria-label="Weekly spending"></canvas></div></div>
+      <div class="card"><div class="card-head"><h3>Monthly spending</h3><span class="sub">Essential vs non-essential</span></div><div class="chart-box"><canvas id="rMonthly" role="img" aria-label="Monthly spending"></canvas></div></div>
+      <div class="card"><div class="card-head"><h3>Category breakdown</h3></div>${catRows.length ? '<div class="chart-box"><canvas id="rCat" role="img" aria-label="Spending by category"></canvas></div>' : emptyState('No expenses in this range.')}</div>
+      <div class="card"><div class="card-head"><h3>Budget vs actual</h3><span class="sub">Whole months overlapping the range</span></div><div id="bvaBox"></div></div>
+    </div>
+    <div class="grid-2">
+      <div class="card"><div class="card-head"><h3>Categories</h3></div>${catRows.length ? `<div class="table-wrap"><table class="data"><thead><tr><th>Category</th><th class="r">Spent</th><th class="r">Share</th><th class="r">Transactions</th></tr></thead><tbody>${catRows.map(([c, v]) => `<tr><td>${esc(c)}</td><td class="r">${money(v)}</td><td class="r">${(v / tot.exp * 100).toFixed(1)}%</td><td class="r">${txs.filter(t => t.type === 'expense' && t.category === c).length}</td></tr>`).join('')}</tbody></table></div>` : emptyState('No expenses in this range.')}</div>
+      <div class="card"><div class="card-head"><h3>Savings goal progress</h3></div>${S.goals.length ? `<div class="chart-box" style="height:${Math.max(160, S.goals.length * 44 + 40)}px"><canvas id="rGoals" role="img" aria-label="Savings goal progress"></canvas></div>` : emptyState('No savings goals yet.', 'add-goal', 'Add goal')}</div>
+    </div>`;
+
+  $('#rPreset').addEventListener('change', e => {
+    const p = e.target.value;
+    const rg = presetRange(p);
+    S.report.preset = p;
+    if (rg) { S.report.from = rg[0]; S.report.to = rg[1]; }
+    renderView();
+  });
+  ['rFrom', 'rTo'].forEach(id => $('#' + id).addEventListener('change', () => {
+    const f = $('#rFrom').value, t = $('#rTo').value;
+    if (!isValidDate(f) || !isValidDate(t)) return toast('Enter valid dates.', 'error');
+    S.report = { preset: 'custom', from: f, to: t };
+    renderView();
+  }));
+
+  const c = themeColors();
+  // Months in range
+  const months = [];
+  for (let m = monthStart(from); m <= to; m = addMonths(m, 1)) months.push(m);
+  const mInc = [], mExp = [], mEss = [], mNon = [];
+  months.forEach(m => {
+    const a = m < from ? from : m, b = monthEnd(m) > to ? to : monthEnd(m);
+    const tt = rangeTotals(a, b);
+    mInc.push(tt.inc / 100); mExp.push(tt.exp / 100);
+    const ex = rangeTxns(a, b).filter(t => t.type === 'expense');
+    mEss.push(ex.filter(t => t.is_essential).reduce((s, t) => s + t._c, 0) / 100);
+    mNon.push(ex.filter(t => !t.is_essential).reduce((s, t) => s + t._c, 0) / 100);
+  });
+  const mLabels = months.map(fmtMonthShort);
+  drawChart('rIncExp', { type: 'bar', data: { labels: mLabels, datasets: [
+    { label: 'Income', data: mInc, backgroundColor: c.inc, borderRadius: 5, maxBarThickness: 28 },
+    { label: 'Expenses', data: mExp, backgroundColor: c.exp, borderRadius: 5, maxBarThickness: 28 }] }, options: baseOpts() });
+  drawChart('rMonthly', { type: 'bar', data: { labels: mLabels, datasets: [
+    { label: 'Essential', data: mEss, backgroundColor: c.accent, borderRadius: 4, maxBarThickness: 32, stack: 's' },
+    { label: 'Non-essential', data: mNon, backgroundColor: c.half, borderRadius: 4, maxBarThickness: 32, stack: 's' }] },
+    options: baseOpts({ scales: { x: { stacked: true, grid: { display: false } }, y: { stacked: true, beginAtZero: true, ticks: { callback: moneyTick, maxTicksLimit: 6 } } } }) });
+
+  // Daily
+  const dl = [], dv = [];
+  for (let d = from; d <= to; d = addDays(d, 1)) { dl.push(fmtDateShort(d)); dv.push(dayTotals(d).exp / 100); }
+  drawChart('rDaily', { type: 'line', data: { labels: dl, datasets: [{ label: 'Spent', data: dv, borderColor: c.exp, backgroundColor: c.exp + '22', fill: true, tension: .25, pointRadius: dl.length > 45 ? 0 : 2, borderWidth: 2 }] }, options: baseOpts() });
+
+  // Weekly
+  const wl = [], wv = [];
+  for (let w = weekStartOf(from); w <= to; w = addDays(w, 7)) {
+    const a = w < from ? from : w, b = addDays(w, 6) > to ? to : addDays(w, 6);
+    wl.push(fmtDateShort(w)); wv.push(rangeTotals(a, b).exp / 100);
+  }
+  drawChart('rWeekly', { type: 'bar', data: { labels: wl, datasets: [{ label: 'Spent (week starting)', data: wv, backgroundColor: c.exp, borderRadius: 4, maxBarThickness: 22 }] }, options: baseOpts() });
+
+  if (catRows.length) doughnutChart('rCat', topCategories(catMap));
+
+  // Budget vs actual (whole months that overlap the range)
+  const bva = new Map();
+  months.forEach(m => {
+    const spend = monthCategorySpend(m);
+    budgetsForMonth(m).forEach(b => {
+      const key = b.category || 'Whole month (all expenses)';
+      const cur = bva.get(key) || { budget: 0, actual: 0 };
+      cur.budget += toCents(b.amount);
+      cur.actual += b.category ? (spend.get(b.category) || 0) : [...spend.values()].reduce((x, y) => x + y, 0);
+      bva.set(key, cur);
+    });
+  });
+  if (bva.size) {
+    const keys = [...bva.keys()].sort((a, b) => (a.startsWith('Whole') ? -1 : b.startsWith('Whole') ? 1 : a.localeCompare(b)));
+    $('#bvaBox').innerHTML = `<div class="chart-box" style="height:${Math.max(220, keys.length * 46 + 60)}px"><canvas id="rBva" role="img" aria-label="Budget versus actual"></canvas></div>`;
+    drawChart('rBva', { type: 'bar', data: { labels: keys, datasets: [
+      { label: 'Budget', data: keys.map(k => bva.get(k).budget / 100), backgroundColor: c.faint, borderRadius: 4, maxBarThickness: 16 },
+      { label: 'Actual', data: keys.map(k => bva.get(k).actual / 100), backgroundColor: keys.map(k => bva.get(k).actual > bva.get(k).budget ? c.danger : c.accent), borderRadius: 4, maxBarThickness: 16 }] },
+      options: baseOpts({ indexAxis: 'y', plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, usePointStyle: true } }, tooltip: { callbacks: { label: ctx => `${ctx.dataset.label}: ${money(Math.round(ctx.parsed.x * 100))}` } } },
+        scales: { x: { beginAtZero: true, ticks: { callback: moneyTick, maxTicksLimit: 5 } }, y: { grid: { display: false } } } }) });
+  } else {
+    $('#bvaBox').innerHTML = emptyState('No budgets in these months.', 'goto-budgets', 'Create a budget');
+  }
+
+  if (S.goals.length) {
+    drawChart('rGoals', { type: 'bar', data: { labels: S.goals.map(g => g.name), datasets: [{ label: 'Progress', data: S.goals.map(g => Math.min(100, toCents(g.saved_amount) / toCents(g.target_amount) * 100)), backgroundColor: c.accent, borderRadius: 4, maxBarThickness: 18 }] },
+      options: { responsive: true, maintainAspectRatio: false, indexAxis: 'y', plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => { const g = S.goals[ctx.dataIndex]; return `${Math.round(ctx.parsed.x)}% · ${money(toCents(g.saved_amount))} of ${money(toCents(g.target_amount))}`; } } } },
+        scales: { x: { min: 0, max: 100, ticks: { callback: v => v + '%' } }, y: { grid: { display: false } } } } });
+  }
+}
+
+/* =====================================================================
+   CSV / JSON export (only the signed-in user's own data, from memory)
+   ===================================================================== */
+/** Escape one CSV cell and neutralise spreadsheet formulas (CSV injection). */
+function csvCell(v) {
+  if (v === null || v === undefined) return '';
+  let s = typeof v === 'number' ? String(v) : String(v);
+  if (typeof v !== 'number' && /^[\s]*[=+\-@\t\r|%]/.test(s)) s = "'" + s;
+  if (/[",\r\n;]/.test(s) || s !== s.trim()) s = '"' + s.replace(/"/g, '""') + '"';
+  return s;
+}
+function toCsv(header, rows) { return '﻿' + [header, ...rows].map(r => r.map(csvCell).join(',')).join('\r\n') + '\r\n'; }
+function download(name, content, type) {
+  const blob = new Blob([content], { type });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = name; a.rel = 'noopener';
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 2000);
+}
+function txnCsv(list) {
+  return toCsv(['id', 'date', 'type', 'category', 'description', 'amount', 'currency', 'payment_method', 'essential', 'notes', 'created_at', 'updated_at'],
+    list.map(t => [t.id, t.txn_date, t.type, t.category, t.description, Number((t._c / 100).toFixed(2)), t.currency, PAYMENT_METHODS[t.payment_method] || t.payment_method, t.type === 'expense' ? (t.is_essential ? 'yes' : 'no') : '', t.notes || '', t.created_at, t.updated_at]));
+}
+function exportRange() {
+  let { from, to } = S.report;
+  if (from > to) [from, to] = [to, from];
+  const list = S.txns.filter(t => t.txn_date >= from && t.txn_date <= to).slice().sort((a, b) => a.txn_date.localeCompare(b.txn_date));
+  if (!list.length) return toast('No transactions in this range to export.');
+  download(`dailybudget-transactions-${from}-to-${to}.csv`, txnCsv(list), 'text/csv;charset=utf-8');
+}
+function exportAll() {
+  if (!S.txns.length) return toast('No transactions to export yet.');
+  download(`dailybudget-all-transactions-${todayStr()}.csv`, txnCsv(S.txns.slice().sort((a, b) => a.txn_date.localeCompare(b.txn_date))), 'text/csv;charset=utf-8');
+}
+
+/* =====================================================================
+   Backup & restore
+   ===================================================================== */
+function downloadBackup() {
+  if (!DB) return toast('There is no data to back up yet.');
+  DB.last_backup_at = nowIso();
+  try { persist(); } catch { /* the download below still works */ }
+  const data = { app: 'DailyBudget', format: 1, exported_at: DB.last_backup_at, created_at: DB.created_at, last_backup_at: DB.last_backup_at, tables: DB.tables };
+  download(`dailybudget-backup-${todayStr()}.json`, JSON.stringify(data, null, 2), 'application/json');
+  toast('Backup downloaded. Keep the file somewhere private — it contains your financial records.', 'success');
+  if (S.user && (S.view === 'settings' || S.view === 'dashboard')) renderView();
+}
+function pickRestoreFile() {
+  const input = $('#restoreFile');
+  input.value = '';
+  input.click();
+}
+async function restoreFromFile(file) {
+  if (!file) return;
+  if (file.size > 25 * 1024 * 1024) return toast('That file is too large to be a DailyBudget backup.', 'error');
+  let parsed;
+  try {
+    const text = await file.text();
+    parsed = sanitizeData(JSON.parse(text));
+  } catch (err) {
+    return toast(err && err.userMessage ? err.userMessage : 'That file is not a valid DailyBudget backup.', 'error');
+  }
+  const t = parsed.db.tables;
+  const summary = `${t.transactions.length} transactions, ${t.budgets.length} budgets, ${t.bills.length} bills and ${t.savings_goals.length} savings goals`;
+  const ok = await confirmDialog('Restore this backup?',
+    `This backup contains ${summary}.${parsed.skipped ? ` ${parsed.skipped} damaged record(s) will be skipped.` : ''}${DB ? ' It will REPLACE everything currently saved in this browser.' : ''}`,
+    { confirmLabel: 'Restore', danger: !!DB });
+  if (!ok) return;
+  const previous = DB;
+  DB = parsed.db;
+  try { persist(); } catch (err) { DB = previous; return handleError(err, 'restore'); }
+  S.corruptRaw = null;
+  $('#corruptBanner').hidden = true;
+  requestPersistentStorage();
+  S.user = null;
+  await enterApp();
+  toast('Backup restored.', 'success');
+}
+
+/* =====================================================================
+   VIEW: Settings
+   ===================================================================== */
+function renderSettings() {
+  const p = S.prefs;
+  const curOpts = [...new Set([p.currency, ...CURRENCIES])].map(c => `<option ${c === p.currency ? 'selected' : ''}>${esc(c)}</option>`).join('');
+  const last = DB && DB.last_backup_at;
+  $('#view').innerHTML = `
+    ${storageNote()}
+    <div class="settings">
+      <div class="card"><div class="card-head"><h3>Budget preferences</h3></div>
+        <form id="prefsForm" novalidate>
+          <div class="form-grid">
+            <label class="field"><span>Display currency</span><select class="input" name="currency">${curOpts}</select></label>
+            <label class="field"><span>Daily spending limit</span><input class="input num" name="daily_budget" inputmode="decimal" value="${esc((toCents(p.daily_budget) / 100).toFixed(2))}"><span class="hint">0 turns the daily budget off.</span></label>
+            <label class="check full"><input type="checkbox" name="rollover_enabled" ${p.rollover_enabled ? 'checked' : ''}> Roll over unused daily budget</label>
+            <label class="field"><span>Rollover window (days)</span><input class="input num" type="number" name="rollover_days" min="1" max="31" step="1" value="${esc(p.rollover_days)}"></label>
+            <label class="field"><span>Week starts on</span><select class="input" name="week_start"><option value="1" ${Number(p.week_start) === 1 ? 'selected' : ''}>Monday</option><option value="0" ${Number(p.week_start) === 0 ? 'selected' : ''}>Sunday</option></select></label>
+            <p class="hint full">Rollover: today's budget = daily limit + the unused amount from each of the previous N days (limit minus that day's expenses, added up, and never less than zero). Overspending on a past day reduces the carry-over. Income never increases the daily budget.</p>
+          </div>
+          <div><button class="btn primary" type="submit">Save preferences</button></div>
+        </form>
+      </div>
+
+      <div class="card"><div class="card-head"><h3>Opening balance</h3></div>
+        <form id="openForm" novalidate>
+          <p class="muted small">Your tracked balance starts from this amount on this date. Transactions dated <strong>before</strong> the opening date are kept for history and reports but are not added to the balance again, so nothing is counted twice.</p>
+          <div class="form-grid">
+            <label class="field"><span>Opening balance (${esc(p.currency)})</span><input class="input num" name="opening_balance" inputmode="decimal" value="${esc((toCents(p.opening_balance) / 100).toFixed(2))}"><span class="hint">Can be negative (e.g. overdrawn).</span></label>
+            <label class="field"><span>As of date</span><input class="input" type="date" name="opening_balance_date" value="${esc(p.opening_balance_date)}" min="1900-01-01" max="2100-12-31"></label>
+          </div>
+          <p class="hint">This is your own record, not a bank-verified balance.</p>
+          <div><button class="btn primary" type="submit">Save opening balance</button></div>
+        </form>
+      </div>
+
+      <div class="card"><div class="card-head"><h3>Backup &amp; restore</h3></div>
+        <p class="muted small" style="margin-bottom:6px">Last backup: <strong>${last ? esc(new Date(last).toLocaleString()) : 'never'}</strong></p>
+        <p class="muted small" style="margin-bottom:14px">A backup file holds all your records. Restore it to move your budget to another phone, computer or browser, or to recover after clearing browser data.</p>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn primary" data-action="backup">Download backup</button>
+          <button class="btn" data-action="restore">Restore from backup…</button>
+          <button class="btn" data-action="export-csv">Transactions (CSV)</button>
+        </div>
+        <p class="hint" style="margin-top:12px">Keep backup files private — they contain your financial records.</p>
+      </div>
+
+      <div class="card"><div class="card-head"><h3>Where your data is stored</h3></div>
+        <p class="muted small">Everything you enter is saved in this browser's storage on this device. It is never uploaded — this website has no server or database, and there are no accounts, ads, analytics or AI services.</p>
+        <p class="muted small" style="margin-top:8px">Anyone who can use this browser profile can open your budget. On a shared computer, use your own browser profile or erase your data when you're done.</p>
+        <p class="hint" id="persistStatus" style="margin-top:10px"></p>
+        <form id="profileForm" novalidate style="margin-top:14px">
+          <label class="field"><span>Name shown in the menu (optional)</span><input class="input" name="display_name" maxlength="80" value="${esc(S.profile.display_name || '')}"></label>
+          <div><button class="btn" type="submit">Save name</button></div>
+        </form>
+      </div>
+
+      <div class="card danger-zone"><div class="card-head"><h3>Erase all data</h3></div>
+        <p class="muted small" style="margin-bottom:14px">Permanently deletes every transaction, budget, bill and goal saved in this browser. This cannot be undone unless you have a backup file.</p>
+        <button class="btn danger" data-action="erase">Erase all data…</button>
+      </div>
+    </div>`;
+
+  try {
+    if (navigator.storage && navigator.storage.persisted) {
+      navigator.storage.persisted().then(ok => {
+        const el = $('#persistStatus');
+        if (el) el.textContent = ok ? 'Your browser has agreed to keep this data even when storage runs low.' : 'Your browser may clear this data if the device runs low on space, or if you clear site data. Keep backups.';
+      }).catch(() => {});
+    }
+  } catch { /* not supported */ }
+
+  const saveBtn = async (form, fn) => {
+    const btn = $('button[type=submit]', form);
+    btn.disabled = true;
+    try { await fn(new FormData(form)); }
+    catch (err) { await handleError(err, 'settings'); }
+    finally { btn.disabled = false; }
+  };
+  $('#prefsForm').addEventListener('submit', e => { e.preventDefault(); saveBtn(e.target, async fd => {
+    const currency = String(fd.get('currency'));
+    if (!/^[A-Z]{3}$/.test(currency)) fail('Choose a valid currency.');
+    const daily = parseAmount(fd.get('daily_budget'), { allowZero: true });
+    if (daily === null) fail('Enter a valid daily limit (0 or more).');
+    const rd = Number(fd.get('rollover_days'));
+    if (!Number.isInteger(rd) || rd < 1 || rd > 31) fail('Rollover window must be 1–31 days.');
+    const ws = Number(fd.get('week_start'));
+    if (![0, 1].includes(ws)) fail('Choose a week start.');
+    const { data, error } = await store.from('app_preferences').update({ currency, daily_budget: centsToDb(daily), rollover_enabled: fd.get('rollover_enabled') === 'on', rollover_days: rd, week_start: ws }).eq('user_id', LOCAL_UID).select().single();
+    if (error) throw error;
+    S.prefs = data; reindex(); renderView(); toast('Preferences saved.', 'success');
+  }); });
+  $('#openForm').addEventListener('submit', e => { e.preventDefault(); saveBtn(e.target, async fd => {
+    const ob = parseAmount(fd.get('opening_balance'), { allowZero: true, allowNegative: true });
+    if (ob === null) fail('Enter a valid opening balance (up to 2 decimals).');
+    const od = String(fd.get('opening_balance_date') || '');
+    if (!isValidDate(od)) fail('Enter a valid date.');
+    const { data, error } = await store.from('app_preferences').update({ opening_balance: centsToDb(ob), opening_balance_date: od }).eq('user_id', LOCAL_UID).select().single();
+    if (error) throw error;
+    S.prefs = data; reindex(); toast('Opening balance saved.', 'success');
+  }); });
+  $('#profileForm').addEventListener('submit', e => { e.preventDefault(); saveBtn(e.target, async fd => {
+    const { data, error } = await store.from('profiles').update({ display_name: clean(fd.get('display_name'), 80) || null }).eq('id', LOCAL_UID).select().single();
+    if (error) throw error;
+    S.profile = data; renderWho(); toast('Name saved.', 'success');
+  }); });
+}
+function openErase() {
+  openModal({
+    title: 'Erase all data?', submitLabel: 'Erase everything', danger: true,
+    body: `<p>This permanently deletes every transaction, budget, bill and goal saved in this browser. It cannot be undone unless you have a backup file.</p>
+      <label class="field" style="margin-top:14px"><span>Type ERASE to confirm</span><input class="input" name="confirm" autocomplete="off" required></label>`,
+    onSubmit: async fd => {
+      if (String(fd.get('confirm')).trim() !== 'ERASE') fail('Type ERASE (in capital letters) to confirm.');
+      try { localStorage.removeItem(STORAGE_KEY); } catch { /* storage unavailable */ }
+      DB = null;
+      showLanding('All data has been erased from this browser.');
+    }
+  });
+}
+
+/* =====================================================================
+   Global event handling
+   ===================================================================== */
+const ACTIONS = {
+  'start': () => startFresh(),
+  'restore': () => pickRestoreFile(),
+  'backup': () => downloadBackup(),
+  'erase': () => openErase(),
+  'download-corrupt': () => S.corruptRaw && download('dailybudget-unreadable-data.txt', S.corruptRaw, 'text/plain'),
+  'toggle-theme': () => toggleTheme(),
+  'nav': el => go(el.dataset.view),
+  'open-nav': () => $('#app').classList.add('nav-open'),
+  'close-nav': () => $('#app').classList.remove('nav-open'),
+  'modal-close': () => closeModal(),
+  'add-txn': () => S.user && openTxnForm(null),
+  'edit-txn': el => { const t = S.txns.find(x => x.id === el.dataset.id); if (t) openTxnForm(t); },
+  'del-txn': el => deleteTxn(el.dataset.id),
+  'tx-more': () => { S.txLimit += PAGE_SIZE; renderTxList(); },
+  'dash-today': () => { S.dashDate = todayStr(); renderView(); },
+  'goto-settings': () => go('settings'),
+  'goto-budgets': () => go('budgets'),
+  'budget-month': el => { S.budgetMonth = addMonths(S.budgetMonth, Number(el.dataset.delta)); renderView(); },
+  'budget-goto': el => { S.budgetMonth = el.dataset.month; renderView(); window.scrollTo(0, 0); },
+  'add-budget': () => openBudgetForm(null),
+  'add-overall-budget': () => openBudgetForm(null, { overall: true }),
+  'edit-budget': el => { const b = S.budgets.find(x => x.id === el.dataset.id); if (b) openBudgetForm(b); },
+  'del-budget': el => deleteBudget(el.dataset.id),
+  'copy-budgets': () => copyBudgets(),
+  'bill-tab': el => { S.billTab = el.dataset.tab; renderView(); },
+  'add-bill': () => { if (S.view !== 'bills') go('bills'); openBillForm(null); },
+  'edit-bill': el => { const b = S.bills.find(x => x.id === el.dataset.id); if (b) openBillForm(b); },
+  'pay-bill': el => { const b = S.bills.find(x => x.id === el.dataset.id); if (b && b.status === 'pending') openPayForm(b); },
+  'del-bill': el => deleteBill(el.dataset.id),
+  'add-goal': () => { if (S.view !== 'goals') go('goals'); openGoalForm(null); },
+  'edit-goal': el => { const g = S.goals.find(x => x.id === el.dataset.id); if (g) openGoalForm(g); },
+  'adjust-goal': el => { const g = S.goals.find(x => x.id === el.dataset.id); if (g) openGoalAdjust(g); },
+  'del-goal': el => deleteGoal(el.dataset.id),
+  'export-range': () => exportRange(),
+  'export-csv': () => exportAll(),
+  'export-json': () => downloadBackup()
+};
+document.addEventListener('click', e => {
+  const el = e.target.closest('[data-action]');
+  if (!el) return;
+  const fn = ACTIONS[el.dataset.action];
+  if (!fn) return;
+  e.preventDefault();
+  Promise.resolve(fn(el, e)).catch(err => handleError(err, el.dataset.action));
+});
+window.addEventListener('popstate', () => {
+  if (!S.user) return;
+  const v = location.hash.replace(/^#\/?/, '');
+  S.view = VIEWS.some(x => x.id === v) ? v : 'dashboard';
+  renderNav(); renderView();
+});
+window.addEventListener('resize', debounce(() => { if (S.user && ['dashboard', 'reports'].includes(S.view)) renderView(); }, 400));
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { if (S.user) renderView(); });
+
+$('#restoreFile').addEventListener('change', e => {
+  const file = e.target.files && e.target.files[0];
+  restoreFromFile(file).catch(err => handleError(err, 'restore'));
+});
+
+/* Keep several open tabs in sync */
+window.addEventListener('storage', e => {
+  if (e.key !== STORAGE_KEY) return;
+  if (!e.newValue) {
+    DB = null;
+    if (S.user) showLanding('Your data was erased in another tab.');
+    return;
+  }
+  try { DB = sanitizeData(JSON.parse(e.newValue)).db; } catch { return; }
+  if (S.user) {
+    closeModal();
+    S.user = null;
+    enterApp().then(() => toast('Updated with changes made in another tab.'));
+  }
+});
+
+/* =====================================================================
+   Startup
+   ===================================================================== */
+(function init() {
+  applyTheme();
+  $('#year').textContent = new Date().getFullYear();
+  storageAvailable = storageWorks();
+  if (!storageAvailable) $('#storageBanner').hidden = false;
+  let raw = null;
+  if (storageAvailable) { try { raw = localStorage.getItem(STORAGE_KEY); } catch { raw = null; } }
+  if (raw) {
+    try {
+      DB = sanitizeData(JSON.parse(raw)).db;
+    } catch {
+      DB = null;
+      S.corruptRaw = raw;
+      $('#corruptBanner').hidden = false;
+    }
+  }
+  if (DB) {
+    requestPersistentStorage();
+    enterApp();
+  }
+})();
+</script>
+</body>
+</html>
